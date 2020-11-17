@@ -239,7 +239,6 @@ mod tests {
         assert_eq!(t1.cmp(&t2), Ordering::Greater);
         assert_eq!(t1.cmp(&t1), Ordering::Equal);
         assert_eq!(t2.cmp(&t1), Ordering::Less);
-        println!("next");
         let t2 = parse_simple(&mut names, "x^3*y^2");
         assert_eq!(t1.cmp(&t2), Ordering::Less);
         assert_eq!(t1.cmp(&t1), Ordering::Equal);
