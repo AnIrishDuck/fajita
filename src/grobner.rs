@@ -4,57 +4,27 @@ use std::cmp::Ordering;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct GrevlexMonomial {
+struct Variable {
     index: u32
 }
 
-impl Ord for GrevlexMonomial {
+impl Variable {
+    fn pow(&self, other: u32) -> Term<Variable> {
+        Term { parts: vec![((*self).clone(), other)].into_iter().collect() }
+    }
+}
+
+impl Ord for Variable {
     fn cmp(&self, other: &Self) -> Ordering {
         self.index.cmp(&other.index).reverse()
     }
 }
 
-impl PartialOrd for GrevlexMonomial {
+impl PartialOrd for Variable {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-
-#[derive(Clone, Debug)]
-struct Term<I: Ord> {
-    parts: BTreeMap<I, u32>
-}
-
-impl<I: Ord + Clone> Term<I> {
-    fn degree(&self) -> u32 {
-        self.parts.values().sum()
-    }
-
-    fn full_div(&self, other: &Term<I>) -> Option<Term<I>> {
-        if PairZip::new(self, other).any(|(_, p1, p2)| p1 < p2) {
-            None
-        } else {
-            let parts = PairZip::new(self, other).map(|(i, p1, p2)| {
-                ((*i).clone(), p1.unwrap_or(0) - p2.unwrap_or(0))
-            }).filter(|(_, p)| *p != 0).collect::<BTreeMap<I, u32>>();
-
-            Some(Term { parts })
-        }
-    }
-}
-
-impl<I: Ord + Clone> std::ops::Mul<&Term<I>> for Term<I> {
-    type Output = Self;
-
-    fn mul(self, other: &Self) -> Self {
-        let parts = PairZip::new(&self, &other).map(|(i, p1, p2)| {
-            ((*i).clone(), p1.unwrap_or(0) + p2.unwrap_or(0))
-        }).collect::<BTreeMap<I, u32>>();
-
-        Term { parts }
-    }
-}
-
 struct PairZip<'a, I: Ord> {
     i1: std::collections::btree_map::Iter<'a, I, u32>,
     i2: std::collections::btree_map::Iter<'a, I, u32>,
@@ -109,7 +79,42 @@ impl<'a, I: Ord> Iterator for PairZip<'a, I> {
     }
 }
 
-impl Ord for Term<GrevlexMonomial> {
+#[derive(Clone, Debug)]
+struct Term<I: Ord> {
+    parts: BTreeMap<I, u32>
+}
+
+impl<I: Ord + Clone> Term<I> {
+    fn degree(&self) -> u32 {
+        self.parts.values().sum()
+    }
+
+    fn full_div(&self, other: &Term<I>) -> Option<Term<I>> {
+        if PairZip::new(self, other).any(|(_, p1, p2)| p1 < p2) {
+            None
+        } else {
+            let parts = PairZip::new(self, other).map(|(i, p1, p2)| {
+                ((*i).clone(), p1.unwrap_or(0) - p2.unwrap_or(0))
+            }).filter(|(_, p)| *p != 0).collect::<BTreeMap<I, u32>>();
+
+            Some(Term { parts })
+        }
+    }
+}
+
+impl<I: Ord + Clone> std::ops::Mul<&Term<I>> for Term<I> {
+    type Output = Self;
+
+    fn mul(self, other: &Self) -> Self {
+        let parts = PairZip::new(&self, &other).map(|(i, p1, p2)| {
+            ((*i).clone(), p1.unwrap_or(0) + p2.unwrap_or(0))
+        }).collect::<BTreeMap<I, u32>>();
+
+        Term { parts }
+    }
+}
+
+impl Ord for Term<Variable> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.degree().cmp(&other.degree())
             .then_with(|| {
@@ -130,13 +135,13 @@ impl Ord for Term<GrevlexMonomial> {
     }
 }
 
-impl PartialOrd for Term<GrevlexMonomial> {
+impl PartialOrd for Term<Variable> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl PartialEq for Term<GrevlexMonomial> {
+impl PartialEq for Term<Variable> {
     fn eq(&self, other: &Self) -> bool {
         self.parts.len() == other.parts.len() && {
             self.parts.iter().zip(other.parts.iter()).all(|((k,v), (ok, ov))| {
@@ -146,7 +151,7 @@ impl PartialEq for Term<GrevlexMonomial> {
     }
 }
 
-impl Eq for Term<GrevlexMonomial> {}
+impl Eq for Term<Variable> {}
 
 struct Bound<'a, T: Named + Ord> {
     names: &'a BTreeMap<u32, String>,
@@ -173,18 +178,62 @@ trait Named {
     fn get_name(&self, names: &BTreeMap<u32, String>) -> String;
 }
 
-impl Named for GrevlexMonomial {
+impl Named for Variable {
     fn get_name(&self, names: &BTreeMap<u32, String>) -> String {
         names.get(&self.index).unwrap_or(&"???".to_string()).clone()
     }
 }
 
+#[derive(Clone, Debug)]
+struct GrevlexTerm {
+    term: Term<Variable>
+}
+
+impl PartialEq for GrevlexTerm {
+    fn eq(&self, other: &Self) -> bool {
+        self.term.parts.len() == other.term.parts.len() && {
+            self.term.parts.iter().zip(other.term.parts.iter()).all(|((k,v), (ok, ov))| {
+                k == ok && v == ov
+            })
+        }
+    }
+}
+
+impl Eq for GrevlexTerm {}
+
+impl Ord for GrevlexTerm {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.term.degree().cmp(&other.term.degree())
+            .then_with(|| {
+                let mut i1 = self.term.parts.iter().rev();
+                let mut i2 = other.term.parts.iter().rev();
+                loop {
+                    match (i1.next(), i2.next()) {
+                        (Some((m1, p1)), Some((m2, p2))) => {
+                            let o = m1.cmp(&m2).then(p2.cmp(p1));
+                            if o != Ordering::Equal { return o }
+                        },
+                        (None, Some(_)) => return Ordering::Less,
+                        (Some(_), None) => return Ordering::Greater,
+                        (None, None) => return Ordering::Equal
+                    }
+                }
+            })
+    }
+}
+
+impl PartialOrd for GrevlexTerm {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 struct Polynomial {
-    terms: BTreeMap<Term<GrevlexMonomial>, f64>
+    terms: BTreeMap<GrevlexTerm, f64>
 }
 
 impl Polynomial {
-    fn lead_term(&self) -> Option<(&Term<GrevlexMonomial>, f64)> {
+    fn lead_term(&self) -> Option<(&GrevlexTerm, f64)> {
         self.terms.iter().next_back().map(|(k, v)| (k, *v))
     }
 
@@ -197,7 +246,7 @@ impl Polynomial {
 mod tests {
     use super::*;
 
-    fn parse_simple(names: &mut BTreeMap<String, u32>, v: &str) -> Term<GrevlexMonomial> {
+    fn parse_simple(names: &mut BTreeMap<String, u32>, v: &str) -> Term<Variable> {
         let re = Regex::new(r"([a-z]+\d*)\^(\d+)").unwrap();
 
         let mut terms = re.captures_iter(v).map(|caps| {
@@ -206,7 +255,7 @@ mod tests {
             let degree = caps[2].parse().unwrap();
             let index = *names.entry(name).or_insert(next);
             Term {
-                parts: vec![(GrevlexMonomial { index }, degree)].into_iter().collect()
+                parts: vec![(Variable { index }, degree)].into_iter().collect()
             }
         });
 
@@ -214,7 +263,7 @@ mod tests {
         terms.fold(first, |a, c| a * &c)
     }
 
-    fn string_term(names: &BTreeMap<String, u32>, value: &Term<GrevlexMonomial>) -> String {
+    fn string_term(names: &BTreeMap<String, u32>, value: &Term<Variable>) -> String {
         let inverted = names.iter().map(|(k, v)| { (*v, k.clone()) }).collect();
         format!("{}", Bound { names: &inverted, polynomial: value }).to_string()
     }
@@ -254,10 +303,11 @@ mod tests {
         let d = parse_simple(&mut names, "x^1*y^1*z^3");
         assert_eq!(a.cmp(&b), Ordering::Greater);
 
-        let terms = vec![(a, 2.0), (b, -3.0), (c, -1.0), (d, 1.0)].into_iter().collect();
+        let terms = vec![(a, 2.0), (b, -3.0), (c, -1.0), (d, 1.0)].into_iter()
+            .map(|(term, coef)| (GrevlexTerm { term }, coef)).collect();
         let p = Polynomial { terms };
         let (lead, coef) = p.lead_term().unwrap();
-        assert_eq!(string_term(&names, lead), "y^8*x^2");
+        assert_eq!(string_term(&names, &lead.term), "y^8*x^2");
         assert_eq!(coef, 2.0);
     }
 
