@@ -2,10 +2,12 @@ use regex::Regex;
 use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use std::fmt;
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 struct Variable {
-    index: u32
+    index: u32,
+    name: Arc<String>,
 }
 
 impl Variable {
@@ -13,6 +15,14 @@ impl Variable {
         Term { parts: vec![((*self).clone(), other)].into_iter().collect() }
     }
 }
+
+impl PartialEq for Variable {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+
+impl Eq for Variable {}
 
 impl Ord for Variable {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -25,6 +35,7 @@ impl PartialOrd for Variable {
         Some(self.cmp(other))
     }
 }
+
 struct PairZip<'a, I: Ord> {
     i1: std::collections::btree_map::Iter<'a, I, u32>,
     i2: std::collections::btree_map::Iter<'a, I, u32>,
@@ -153,25 +164,25 @@ impl PartialEq for Term<Variable> {
 
 impl Eq for Term<Variable> {}
 
-struct Bound<'a, T: Named + Ord> {
-    names: &'a BTreeMap<u32, String>,
-    polynomial: &'a Term<T>
-}
-
-impl <'a, T: Named + Ord> fmt::Display for Bound<'a, T> {
+impl fmt::Display for Term<Variable> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut last = false;
-        self.polynomial.parts.iter().try_for_each(|(k, v)| {
+        self.parts.iter().try_for_each(|(k, v)| {
             if last {
                 write!(f, "*")
             } else {
                 fmt::Result::Ok(())
             }.and_then(|_| {
                 last = true;
-                write!(f, "{}^{}", k.get_name(self.names), v)
+                write!(f, "{}^{}", k.name, v)
             })
         })
     }
+}
+
+struct Bound<'a, T: Named + Ord> {
+    names: &'a BTreeMap<u32, String>,
+    polynomial: &'a Term<T>
 }
 
 trait Named {
@@ -246,16 +257,20 @@ impl Polynomial {
 mod tests {
     use super::*;
 
-    fn parse_simple(names: &mut BTreeMap<String, u32>, v: &str) -> Term<Variable> {
+    type NameMap = BTreeMap<Arc<String>, u32>;
+
+    fn parse_simple(names: &mut NameMap, v: &str) -> Term<Variable> {
         let re = Regex::new(r"([a-z]+\d*)\^(\d+)").unwrap();
 
         let mut terms = re.captures_iter(v).map(|caps| {
             let next = names.len() as u32;
             let name = caps[1].to_string();
             let degree = caps[2].parse().unwrap();
-            let index = *names.entry(name).or_insert(next);
+            let default_name = Arc::new(name);
+            let index = *names.entry(default_name.clone()).or_insert(next);
+            let key = names.get_key_value(&default_name).map(|p| p.0).unwrap_or(&default_name);
             Term {
-                parts: vec![(Variable { index }, degree)].into_iter().collect()
+                parts: vec![(Variable { index, name: key.clone() }, degree)].into_iter().collect()
             }
         });
 
@@ -263,21 +278,20 @@ mod tests {
         terms.fold(first, |a, c| a * &c)
     }
 
-    fn string_term(names: &BTreeMap<String, u32>, value: &Term<Variable>) -> String {
-        let inverted = names.iter().map(|(k, v)| { (*v, k.clone()) }).collect();
-        format!("{}", Bound { names: &inverted, polynomial: value }).to_string()
+    fn string_term(value: &Term<Variable>) -> String {
+        format!("{}", value).to_string()
     }
 
-    fn norm(names: &mut BTreeMap<String, u32>, v: &str) -> String {
+    fn norm(names: &mut NameMap, v: &str) -> String {
         let t = parse_simple(names, v);
-        string_term(names, &t)
+        string_term(&t)
     }
 
     #[test]
     fn test_display() {
         let mut names = BTreeMap::new();
         let value = parse_simple(&mut names, "x^1*y^3*z^1*x^1");
-        assert_eq!(string_term(&names, &value), "z^1*y^3*x^2");
+        assert_eq!(string_term(&value), "z^1*y^3*x^2");
     }
 
     #[test]
@@ -307,7 +321,7 @@ mod tests {
             .map(|(term, coef)| (GrevlexTerm { term }, coef)).collect();
         let p = Polynomial { terms };
         let (lead, coef) = p.lead_term().unwrap();
-        assert_eq!(string_term(&names, &lead.term), "y^8*x^2");
+        assert_eq!(string_term(&lead.term), "y^8*x^2");
         assert_eq!(coef, 2.0);
     }
 
@@ -319,9 +333,9 @@ mod tests {
         let c = parse_simple(&mut names, "x^3*y^8*z^2");
         let d = parse_simple(&mut names, "x^3*y^8");
 
-        assert_eq!(string_term(&names, &a.full_div(&b).unwrap()), norm(&mut names, "x^1"));
+        assert_eq!(string_term(&a.full_div(&b).unwrap()), norm(&mut names, "x^1"));
         assert_eq!(a.full_div(&c), None);
-        assert_eq!(string_term(&names, &c.full_div(&a).unwrap()), norm(&mut names, "x^1*z^2"));
+        assert_eq!(string_term(&c.full_div(&a).unwrap()), norm(&mut names, "x^1*z^2"));
         assert_eq!(a.full_div(&d), None);
     }
 
@@ -333,8 +347,8 @@ mod tests {
         let c = parse_simple(&mut names, "y^4*z^2");
         let d = parse_simple(&mut names, "x^3*z^3");
 
-        assert_eq!(string_term(&names, &(a.clone() * &b)), norm(&mut names, "x^3*y^11"));
-        assert_eq!(string_term(&names, &(a.clone() * &c)), norm(&mut names, "x^2*y^7*z^2"));
-        assert_eq!(string_term(&names, &(a.clone() * &d)), norm(&mut names, "x^5*y^3*z^3"));
+        assert_eq!(string_term(&(a.clone() * &b)), norm(&mut names, "x^3*y^11"));
+        assert_eq!(string_term(&(a.clone() * &c)), norm(&mut names, "x^2*y^7*z^2"));
+        assert_eq!(string_term(&(a.clone() * &d)), norm(&mut names, "x^5*y^3*z^3"));
     }
 }
