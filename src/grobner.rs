@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use std::fmt;
@@ -11,6 +10,7 @@ struct Variable {
 }
 
 impl Variable {
+    #[allow(dead_code)]
     fn pow(&self, other: u32) -> Term<Variable> {
         Term { parts: vec![((*self).clone(), other)].into_iter().collect() }
     }
@@ -100,6 +100,7 @@ impl<I: Ord + Clone> Term<I> {
         self.parts.values().sum()
     }
 
+    #[allow(dead_code)]
     fn full_div(&self, other: &Term<I>) -> Option<Term<I>> {
         if PairZip::new(self, other).any(|(_, p1, p2)| p1 < p2) {
             None
@@ -180,6 +181,7 @@ impl fmt::Display for Term<Variable> {
     }
 }
 
+#[allow(dead_code)]
 struct Bound<'a, T: Named + Ord> {
     names: &'a BTreeMap<u32, String>,
     polynomial: &'a Term<T>
@@ -239,22 +241,21 @@ impl PartialOrd for GrevlexTerm {
     }
 }
 
+#[allow(dead_code)]
 struct Polynomial {
     terms: BTreeMap<GrevlexTerm, f64>
 }
 
 impl Polynomial {
+    #[allow(dead_code)]
     fn lead_term(&self) -> Option<(&GrevlexTerm, f64)> {
         self.terms.iter().next_back().map(|(k, v)| (k, *v))
-    }
-
-    fn reduction(&self, other: Polynomial) -> Option<Polynomial> {
-        None
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use regex::Regex;
     use super::*;
 
     type NameMap = BTreeMap<Arc<String>, u32>;
