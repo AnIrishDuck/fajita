@@ -10,19 +10,19 @@ pub struct Line2 {
 /// Represents an infinite line:
 /// 
 /// ```
-/// # use fajita::plane::{Point2, Vector2};
+/// # use fajita::plane::{p2, v2};
 /// # use fajita::plane::line::Line2;
-/// let l = Line2::from_points(Point2::new(1.0, 1.0), Point2::new(2.0, 2.0));
-/// assert_eq!(l.v, Vector2::new(1.0, 1.0));
+/// let l = Line2::from_points(p2(1.0, 1.0), p2(2.0, 2.0));
+/// assert_eq!(l.v, v2(1.0, 1.0));
 /// ```
 ///
 /// Supports common arithmetic operations:
 ///
 /// ```
-/// # use fajita::plane::{Point2, Vector2};
+/// # use fajita::plane::{p2, v2};
 /// # use fajita::plane::line::Line2;
-/// let l = Line2::from_points(Point2::new(1.0, 1.0), Point2::new(2.0, 1.0)) + Vector2::new(1.0, 1.0);
-/// assert_eq!(l, Line2::new(Point2::new(2.0, 2.0), Vector2::new(1.0, 0.0)));
+/// let l = Line2::from_points(p2(1.0, 1.0), p2(2.0, 1.0)) + v2(1.0, 1.0);
+/// assert_eq!(l, Line2::new(p2(2.0, 2.0), v2(1.0, 0.0)));
 /// ```
 impl Line2 {
     pub fn new(p: Point2, v: Vector2) -> Line2 {
