@@ -1,5 +1,5 @@
 use std::ops;
-use crate::plane::{Point2, Vector2};
+use crate::plane::{p2, Point2, Vector2};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line2 {
@@ -31,6 +31,37 @@ impl Line2 {
 
     pub fn from_points(p1: Point2, p2: Point2) -> Line2 {
         Line2 { p: p1, v: p2 - p1 }
+    }
+
+    /// Finds the intersection of this object and another:
+    ///
+    /// ```
+    /// # use fajita::plane::{p2, v2};
+    /// # use fajita::plane::line::Line2;
+    /// let l = Line2::new(p2(0.0, 2.0), v2(0.0, -2.0));
+    /// let i = l.intersect(&Line2::new(p2(2.0, 0.0), v2(-2.0, 0.0)));
+    /// assert_eq!(i, Some((1.0, p2(0.0, 0.0))));
+    ///
+    /// let i = l.intersect(&Line2::new(p2(1.0, 2.0), v2(0.0, -2.0)));
+    /// assert_eq!(i, None)
+    /// ```
+    ///
+    /// Returns the scalar multiple of `self.v` where the intersection occurs,
+    /// and the intersection point.
+    pub fn intersect(&self, other: &Line2) -> Option<(f64, Point2)> {
+        let d = other.v.y * self.v.x - other.v.x * self.v.y;
+        if d == 0.0 {
+            None
+        } else {
+            let dy = self.p.y - other.p.y;
+            let dx = self.p.x - other.p.x;
+            let ua = (other.v.x * dy - other.v.y * dx) / d;
+
+            let i = p2(self.p.x + ua * self.v.x,
+                       self.p.y + ua * self.v.y);
+
+            Some((ua, i))
+        }
     }
 }
 
