@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 
 cgmath = "0.17.0"
+either = "1.6.1"
 rstar = "0.8.2"
 regex = "1.4.2"
 # rug = "1.11.0"
