@@ -19,12 +19,12 @@ struct IndexedSegment<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Polygon {
+pub struct Polygon2 {
     pub points: Vec<Point2>,
     pub lines: Vec<LineIndex>
 }
 
-impl Polygon {
+impl Polygon2 {
     fn lines(&self) -> impl Iterator<Item=(LineIndex, Line2)> + '_ {
         self.lines.iter().map(move |li|
             (li.clone(), Line2::from_points(self.points[li.a], self.points[li.b]))
@@ -65,7 +65,7 @@ impl Polygon {
         }
     }
 
-    fn divide(&self, division: Line2, normal: Vector2) -> Option<[Polygon;2]> {
+    fn divide(&self, division: Line2, normal: Vector2) -> Option<[Polygon2;2]> {
         let mut intersections = vec![];
         let updated_lines: Vec<_> = self.lines().flat_map(|(indices, poly_line)| {
             let intersect = poly_line.intersect(&division);
@@ -102,8 +102,8 @@ impl Polygon {
 
             Some(
                 [
-                    Polygon { points: combined.clone(), lines: inside },
-                    Polygon { points: combined, lines: outside }
+                    Polygon2 { points: combined.clone(), lines: inside },
+                    Polygon2 { points: combined, lines: outside }
                 ]
             )
         }
@@ -130,7 +130,7 @@ mod tests {
     use crate::plane::shapes::rectangle;
     use super::*;
 
-    fn square() -> Polygon {
+    fn square() -> Polygon2 {
         rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
     }
 
