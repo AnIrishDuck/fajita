@@ -1,15 +1,16 @@
 use either::{Left, Right};
 use std::collections::HashMap;
+use std::cmp::Ordering;
 use std::iter;
 use cgmath::InnerSpace;
 
 use crate::plane::{Line2, Point2, Vector2};
 
 #[derive(Clone, Debug)]
-struct LineIndex {
-    a: usize,
-    b: usize,
-    normal: Vector2
+pub struct LineIndex {
+    pub a: usize,
+    pub b: usize,
+    pub normal: Vector2
 }
 
 struct IndexedSegment<'a> {
@@ -18,9 +19,9 @@ struct IndexedSegment<'a> {
 }
 
 #[derive(Clone, Debug)]
-struct Polygon {
-    points: Vec<Point2>,
-    lines: Vec<LineIndex>
+pub struct Polygon {
+    pub points: Vec<Point2>,
+    pub lines: Vec<LineIndex>
 }
 
 impl Polygon {
@@ -28,6 +29,40 @@ impl Polygon {
         self.lines.iter().map(move |li|
             (li.clone(), Line2::from_points(self.points[li.a], self.points[li.b]))
         )
+    }
+
+    /// Compares the given point to this polygon:
+    ///
+    /// - if `p` is in `poly`, then `p < poly`
+    /// - if `p` is tangent to some segment in `poly`, then `p == poly`
+    /// - if `p` is outside of `poly`, then `p > poly`
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// # use std::cmp::Ordering;
+    /// # use fajita::plane::{p2, v2};
+    /// # use fajita::plane::shapes::rectangle;
+    /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Less);
+    /// assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
+    /// assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Greater);
+    /// ```
+    pub fn cmp_point(&self, point: Point2) -> Ordering {
+        let mut it = self.lines.iter().filter_map(|li| {
+            let dot = (point - self.points[li.a]).dot(li.normal);
+            if dot >= 0.0 { Some(dot) } else { None }
+        });
+
+
+        let positive = it.map(|v| if v > 0.0 { 1 } else { 0 }).max();
+
+        match positive {
+            Some(v) => {
+                if v > 0 { Ordering::Greater } else { Ordering::Equal }
+            }
+            None => Ordering::Less
+        }
     }
 
     fn divide(&self, division: Line2, normal: Vector2) -> Option<[Polygon;2]> {
@@ -92,18 +127,11 @@ impl Polygon {
 #[cfg(test)]
 mod tests {
     use crate::plane::{p2, v2};
+    use crate::plane::shapes::rectangle;
     use super::*;
 
     fn square() -> Polygon {
-        Polygon {
-            points: vec![p2(0.0, 0.0), p2(1.0, 0.0), p2(1.0, 1.0), p2(0.0, 1.0)],
-            lines: vec![
-                LineIndex { a: 0, b: 1, normal: v2( 0.0, -1.0) },
-                LineIndex { a: 1, b: 2, normal: v2( 1.0,  0.0) },
-                LineIndex { a: 2, b: 3, normal: v2( 0.0,  1.0) },
-                LineIndex { a: 3, b: 0, normal: v2(-1.0,  0.0) },
-            ]
-        }
+        rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
     }
 
     #[test]
