@@ -124,14 +124,90 @@ impl Polygon2 {
     }
 }
 
+impl PartialEq for Polygon2 {
+    fn eq(&self, other: &Polygon2) -> bool {
+        self.partial_cmp(other) == Some(Ordering::Equal)
+    }
+}
+
+fn direction(p: &Polygon2, other: &Polygon2) -> Option<Ordering> {
+    let points = other.ring();
+    let it = points.iter().map(|&point| p.cmp_point(point));
+    let mut it = it.skip_while(|&ord| ord == Ordering::Equal);
+    let ne = it.next();
+    match ne {
+        Some(dir) => {
+            if it.all(|ord| ord == dir || ord == Ordering::Equal) {
+                Some(dir)
+            } else {
+                None
+            }
+        }
+        None => Some(Ordering::Equal)
+    }
+}
+
+/// Partial ordering on polygons:
+/// - if `other` is within `self`, `other < self`
+/// - if all points inside `other` are also in `self`, and vice versa,
+///   `other == self`
+/// - if `self` is contained within `other`, `other > self`
+///
+/// If none of the above conditions are true (polygons are disjoint or
+/// intersect each other), return `None`.
+///
+/// Examples:
+///
+/// ```
+/// # use std::cmp::Ordering;
+/// # use fajita::plane::{p2, v2};
+/// # use fajita::plane::shapes::rectangle;
+/// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+/// let inner = rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
+/// let outer = rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
+/// assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
+/// assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
+/// assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
+/// ```
+impl PartialOrd for Polygon2 {
+    fn partial_cmp(&self, other: &Polygon2) -> Option<Ordering> {
+        let self_to_other = direction(&self, other);
+        let other_to_self = direction(other, &self);
+
+        if self_to_other.is_none() || other_to_self.is_none() {
+            None
+        } else {
+            let equal = self_to_other == Some(Ordering::Equal);
+            if self_to_other != other_to_self || equal {
+                other_to_self
+            } else {
+                None
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
     use crate::plane::{p2, v2};
     use crate::plane::shapes::rectangle;
     use super::*;
 
     fn square() -> Polygon2 {
         rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
+    }
+
+    #[test]
+    fn test_poly_compare() {
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let inner = rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
+        let outer = rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
+        assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
+        assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
+        assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
+        let r2 = rectangle(p2(3.0, 0.0), v2(1.0, 1.0));
+        assert_eq!(r.partial_cmp(&r2), None);
     }
 
     #[test]
