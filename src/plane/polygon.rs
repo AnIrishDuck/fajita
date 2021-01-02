@@ -32,6 +32,20 @@ impl Polygon2 {
         )
     }
 
+    pub fn fragment(self, other: &Polygon2) -> Vec<Polygon2> {
+        let fragments = vec![self];
+
+        other.lines().fold(fragments, |acc, (li, l)| {
+            acc.into_iter().flat_map(|frag| {
+                let new_fragments = frag.divide(l.clone(), li.normal);
+                new_fragments.map(|fs| {
+                    let [a, b] = p;
+                    Left(iter::once(a).chain(iter::once(b)))
+                }).unwrap_or(Right(iter::once(frag)))
+            }).collect()
+        })
+    }
+
     /// Compares the given point to this polygon:
     ///
     /// - if `p` is in `poly`, then `p < poly`
@@ -192,8 +206,11 @@ impl PartialOrd for Polygon2 {
         if self_to_other.is_none() || other_to_self.is_none() {
             None
         } else {
-            let equal = self_to_other == Some(Ordering::Equal);
-            if self_to_other != other_to_self || equal {
+            if self_to_other == Some(Ordering::Equal) {
+                other_to_self
+            } else if other_to_self == Some(Ordering::Equal) {
+                self_to_other.map(|o| o.reverse())
+            } else if self_to_other != other_to_self {
                 other_to_self
             } else {
                 None
@@ -211,6 +228,15 @@ mod tests {
 
     fn square() -> Polygon2 {
         rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
+    }
+
+    fn assert_division_ok(divide: &Polygon2, parts: &[Polygon2;2]) {
+        for part in parts.iter() {
+            for p in part.ring() {
+                assert!(divide.cmp_point(p) == Ordering::Equal, "!({:?} == {:?})", p, divide.ring())
+            }
+            assert!(part < divide, "!({:?} < {:?})", part.ring(), divide.ring());
+        }
     }
 
     #[test]
@@ -239,5 +265,36 @@ mod tests {
         let p = square();
         let parts = p.divide(Line2::new(p2(-1.0, 1.5), v2(1.0, 0.0)), v2(0.0, 1.0));
         assert_eq!(parts.is_none(), true);
+    }
+
+    #[test]
+    fn test_equal_greater_partial_cmp() {
+        let a = rectangle(p2(0.0, 0.0), v2(2.0, 1.0));
+        let b = rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
+        assert!(a > b);
+        assert!(b < a);
+    }
+
+    #[test]
+    fn test_fragment_division() {
+        let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let parts = a.divide(Line2::new(p2(0.5, 0.5), v2(1.0, 0.0)), v2(0.0, -1.0));
+        let parts = parts.unwrap();
+        assert_division_ok(&a, &parts);
+        for p in parts.iter() {
+            assert_eq!(p.ring().len(), 4);
+        }
+    }
+
+    #[test]
+    fn test_simple_fragment() {
+        let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+        let fragments = a.clone().fragment(&b);
+
+        assert_eq!(fragments.len(), 4);
+        for fragment in fragments {
+            assert!(fragment < a);
+        }
     }
 }
