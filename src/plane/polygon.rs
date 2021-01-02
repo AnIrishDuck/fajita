@@ -2,6 +2,7 @@ use either::{Left, Right};
 use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::iter;
+use std::ops;
 use cgmath::InnerSpace;
 
 use crate::plane::{Line2, Point2, Vector2};
@@ -127,6 +128,16 @@ impl Polygon2 {
 impl PartialEq for Polygon2 {
     fn eq(&self, other: &Polygon2) -> bool {
         self.partial_cmp(other) == Some(Ordering::Equal)
+
+    }
+}
+
+impl ops::Add<Vector2> for Polygon2 {
+    type Output = Polygon2;
+
+    fn add(mut self, other: Vector2) -> Self {
+        self.points.iter_mut().map(|p| *p += other).last();
+        self
     }
 }
 
@@ -168,6 +179,7 @@ fn direction(p: &Polygon2, other: &Polygon2) -> Option<Ordering> {
 /// assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
 /// assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
 /// assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
+/// assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
 /// ```
 impl PartialOrd for Polygon2 {
     fn partial_cmp(&self, other: &Polygon2) -> Option<Ordering> {
@@ -206,8 +218,7 @@ mod tests {
         assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
         assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
         assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
-        let r2 = rectangle(p2(3.0, 0.0), v2(1.0, 1.0));
-        assert_eq!(r.partial_cmp(&r2), None);
+        assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
     }
 
     #[test]
