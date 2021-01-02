@@ -111,12 +111,15 @@ impl Polygon2 {
     }
 
     fn ring(&self) -> Vec<Point2> {
-        let m: HashMap<_, _> = self.lines.iter().map(|l| (l.a, l)).collect();
+        let a_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.a, l)).collect();
+        let b_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.b, l)).collect();
         let mut current: Option<usize> = Some(self.lines[0].a);
         self.lines.iter().flat_map(|_| {
             match current {
                 Some(prior) => {
-                    current = m.get(&prior).map(|x| x.b);
+                    let ab = a_ends.get(&prior).map(|x| x.b);
+                    let ba = b_ends.get(&prior).map(|x| x.a);
+                    current = ab.or(ba);
                     Some(self.points[prior])
                 },
                 None => None
