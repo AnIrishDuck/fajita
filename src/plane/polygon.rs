@@ -26,24 +26,33 @@ pub struct Polygon2 {
 }
 
 impl Polygon2 {
-    fn lines(&self) -> impl Iterator<Item=(LineIndex, Line2)> + '_ {
+    pub fn lines(&self) -> impl Iterator<Item=(LineIndex, Line2)> + '_ {
         self.lines.iter().map(move |li|
             (li.clone(), Line2::from_points(self.points[li.a], self.points[li.b]))
         )
     }
 
-    pub fn fragment(self, other: &Polygon2) -> Vec<Polygon2> {
+    fn fragment_lines(self, lines: Vec<(LineIndex, Line2)>) -> Vec<Polygon2> {
         let fragments = vec![self];
 
-        other.lines().fold(fragments, |acc, (li, l)| {
+        lines.iter().fold(fragments, |acc, (li, l)| {
             acc.into_iter().flat_map(|frag| {
                 let new_fragments = frag.divide(l.clone(), li.normal);
                 new_fragments.map(|fs| {
-                    let [a, b] = p;
+                    let [a, b] = fs;
                     Left(iter::once(a).chain(iter::once(b)))
                 }).unwrap_or(Right(iter::once(frag)))
             }).collect()
         })
+    }
+
+    pub fn fragment(self, other: Polygon2) -> Vec<Polygon2> {
+        let self_lines: Vec<_> = self.lines().collect();
+        let other_lines: Vec<_> = other.lines().collect();
+
+        self.fragment_lines(other_lines).into_iter()
+            .chain(other.fragment_lines(self_lines).into_iter())
+            .collect()
     }
 
     /// Compares the given point to this polygon:
@@ -290,11 +299,16 @@ mod tests {
     fn test_simple_fragment() {
         let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let b = rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
-        let fragments = a.clone().fragment(&b);
+        let fragments = a.clone().fragment(b.clone());
 
-        assert_eq!(fragments.len(), 4);
+        assert_eq!(fragments.len(), 8);
         for fragment in fragments {
-            assert!(fragment < a);
+            assert!(fragment < a || fragment < b);
+            for p in fragment.ring() {
+                let on_a = a.cmp_point(p) == Ordering::Equal;
+                let on_b = b.cmp_point(p) == Ordering::Equal;
+                assert!(on_a || on_b);
+            }
         }
     }
 }
