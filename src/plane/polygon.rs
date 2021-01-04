@@ -97,7 +97,7 @@ impl Polygon2 {
             let on_line = intersect.filter(|&(u_poly_line, _, _)| u_poly_line >= 0.0 && u_poly_line <= 1.0);
             match on_line {
                 Some((_, _, pi)) => {
-                    let new_ix = self.lines.len() + intersections.len();
+                    let new_ix = self.points.len() + intersections.len();
                     intersections.push(pi);
                     let normal = indices.normal;
                     Left(
@@ -346,6 +346,16 @@ mod tests {
         let p = square();
         let parts = p.divide(Line2::new(p2(-1.0, 1.5), v2(1.0, 0.0)), v2(0.0, 1.0));
         assert_eq!(parts.is_none(), true);
+    }
+
+    #[test]
+    fn test_unified_division() {
+        let mut a = rectangle(p2(0.0, 0.0), v2(2.0, 1.0));
+        let b = rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
+        let b = a.unify(b);
+        let parts = b.divide(Line2::new(p2(1.5, 0.5), v2(0.0, 1.0)), v2(1.0, 0.0));
+        let parts = parts.unwrap();
+        assert_division_ok(&b, &parts);
     }
 
     #[test]
