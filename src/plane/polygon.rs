@@ -135,19 +135,22 @@ impl Polygon2 {
     }
 
     pub fn ring(&self) -> Vec<Point2> {
-        let a_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.a, l)).collect();
-        let b_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.b, l)).collect();
-        let mut current: Option<usize> = Some(self.lines[0].a);
-        self.lines.iter().flat_map(|_| {
-            match current {
-                Some(prior) => {
-                    let ab = a_ends.get(&prior).map(|x| x.b);
-                    let ba = b_ends.get(&prior).map(|x| x.a);
-                    current = ab.or(ba);
-                    Some(self.points[prior])
-                },
-                None => None
-            }
+        let mut ends = HashMap::new();
+        for l in self.lines.iter() {
+            ends.entry(l.a).or_insert(vec![]).push(l);
+            ends.entry(l.b).or_insert(vec![]).push(l);
+        }
+        let mut prior: usize = self.lines[0].a;
+        let mut current: usize = self.lines[0].b;
+        self.lines.iter().map(|_| {
+            let old_prior = current;
+            current = ends[&current].iter()
+                .filter(|l| l.a != prior && l.b != prior)
+                .flat_map(|l| iter::once(l.a).chain(iter::once(l.b)))
+                .filter(|p| *p != current)
+                .next().unwrap();
+            prior = old_prior;
+            self.points[old_prior]
         }).collect()
     }
 
@@ -299,6 +302,22 @@ mod tests {
             }
             assert!(part < divide, "!({:?} < {:?})", part.ring(), divide.ring());
         }
+    }
+
+    #[test]
+    fn test_ring() {
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let ordered = Polygon2 {
+            points: r.points.clone(),
+            lines: r.lines.iter().map(|l| {
+                let mut ab = [l.a, l.b];
+                ab.sort();
+                let [a, b] = ab;
+                LineIndex { a, b, normal: l.normal, internal: l.internal }
+            }).collect()
+        };
+
+        assert_eq!(r.ring(), ordered.ring());
     }
 
     #[test]
