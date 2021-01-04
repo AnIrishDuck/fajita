@@ -11,7 +11,8 @@ use crate::plane::{Line2, Point2, Vector2};
 pub struct LineIndex {
     pub a: usize,
     pub b: usize,
-    pub normal: Vector2
+    pub normal: Vector2,
+    pub internal: bool,
 }
 
 struct IndexedSegment<'a> {
@@ -100,8 +101,8 @@ impl Polygon2 {
                     intersections.push(pi);
                     let normal = indices.normal;
                     Left(
-                        iter::once(LineIndex { a: indices.a, b: new_ix, normal })
-                            .chain(iter::once(LineIndex { a: new_ix, b: indices.b, normal }))
+                        iter::once(LineIndex { a: indices.a, b: new_ix, normal, internal: false })
+                            .chain(iter::once(LineIndex { a: new_ix, b: indices.b, normal, internal: false }))
                     )
                 },
                 None => Right(iter::once(indices))
@@ -121,8 +122,8 @@ impl Polygon2 {
 
             let a = self.points.len();
             let b = a + 1;
-            inside.push(LineIndex { a, b, normal });
-            outside.push(LineIndex { a: b, b: a, normal: -normal });
+            inside.push(LineIndex { a, b, normal, internal: true });
+            outside.push(LineIndex { a: b, b: a, normal: -normal, internal: true });
 
             Some(
                 [
