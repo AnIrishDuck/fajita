@@ -134,7 +134,7 @@ impl Polygon2 {
         }
     }
 
-    fn ring(&self) -> Vec<Point2> {
+    pub fn ring(&self) -> Vec<Point2> {
         let a_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.a, l)).collect();
         let b_ends: HashMap<_, _> = self.lines.iter().map(|l| (l.b, l)).collect();
         let mut current: Option<usize> = Some(self.lines[0].a);
@@ -150,6 +150,58 @@ impl Polygon2 {
             }
         }).collect()
     }
+
+    /// Combines the points in `self` and `other`, and returns two new polygons with
+    /// the same backing point array:
+    ///
+    /// ```
+    /// # use fajita::plane::{p2, v2};
+    /// # use fajita::plane::shapes::rectangle;
+    /// let r1 = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// let r2 = rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
+    /// let (a, b) = r1.clone().unify(r2.clone());
+    /// assert_eq!(a.ring(), r1.ring());
+    /// assert_eq!(b.ring(), r2.ring());
+    /// assert_eq!(a.points.len(), 6);
+    /// assert_eq!(b.points.len(), 6);
+    /// ```
+    pub fn unify(mut self, other: Polygon2) -> (Polygon2, Polygon2) {
+        let self_points: HashMap<_, _> = self.points.iter().enumerate()
+            .map(|(ix, p)| (exact_hash(p), ix)).collect();
+
+        let mapped: HashMap<_, _> = other.points.into_iter().enumerate().map(|(ix, op)| {
+            let h = exact_hash(&op);
+            match self_points.get(&h) {
+                Some(self_ix) => (ix, *self_ix),
+                None => {
+                    let self_ix = self.points.len();
+                    self.points.push(op);
+                    (ix, self_ix)
+                }
+            }
+        }).collect();
+
+        let lines = other.lines.into_iter().map(|l| {
+            LineIndex {
+                a: mapped[&l.a],
+                b: mapped[&l.b],
+                internal: l.internal,
+                normal: l.normal,
+            }
+        }).collect();
+
+        let points = self.points.clone();
+
+        (
+            self,
+            Polygon2 { points, lines }
+        )
+    }
+}
+
+// Note that this has all the obvious issues with floating point comparisons
+fn exact_hash(p: &Point2) -> (u64, u64) {
+    (p.x.to_bits(), p.y.to_bits())
 }
 
 impl PartialEq for Polygon2 {
