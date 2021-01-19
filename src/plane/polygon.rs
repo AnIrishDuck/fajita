@@ -119,6 +119,13 @@ impl<R> Polygon2<R>
             pool.points[old_prior]
         }).collect()
     }
+
+    pub fn unlink(&self) -> Polygon2<Pool2> {
+        let pool = self.pool.borrow().clone();
+        Polygon2 {
+            pool, index: self.index
+        }
+    }
 }
 
 impl<R1, R2> PartialEq<Polygon2<R2>> for Polygon2<R1>
@@ -221,15 +228,6 @@ mod tests {
 
     fn square(pool: &mut Pool2) -> usize {
         pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
-    }
-
-    fn assert_division_ok(divide: &P2, parts: &[P2;2]) {
-        for part in parts.iter() {
-            for p in part.ring() {
-                assert!(divide.cmp_point(p) == Ordering::Equal, "!({:?} == {:?})", p, divide.ring())
-            }
-            assert!(part < divide, "!({:?} < {:?})", part.ring(), divide.ring());
-        }
     }
 
     #[test]
