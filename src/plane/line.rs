@@ -25,18 +25,17 @@ pub struct LineSegment2 {
 ///
 /// ```
 /// # use fajita::plane::{p2, v2};
-/// # use fajita::plane::line::Line2;
-/// let l = Line2::from_points(p2(1.0, 1.0), p2(2.0, 2.0));
-/// assert_eq!(l.v, v2(1.0, 1.0));
+/// # use fajita::plane::line::LineSegment2;
+/// let l = LineSegment2::new(p2(1.0, 1.0), p2(2.0, 2.0));
 /// ```
 ///
 /// Supports common arithmetic operations:
 ///
 /// ```
 /// # use fajita::plane::{p2, v2};
-/// # use fajita::plane::line::Line2;
-/// let l = Line2::new(p2(1.0, 1.0), p2(2.0, 1.0)) + v2(1.0, 1.0);
-/// assert_eq!(l, Line2::from_pv(p2(2.0, 2.0), v2(1.0, 0.0)));
+/// # use fajita::plane::line::LineSegment2;
+/// let l = LineSegment2::new(p2(1.0, 1.0), p2(2.0, 1.0)) + v2(1.0, 1.0);
+/// assert_eq!(l, LineSegment2::from_pv(p2(2.0, 2.0), v2(1.0, 0.0)));
 /// ```
 impl LineSegment2 {
     pub fn new(a: Point2, b: Point2) -> LineSegment2 {
@@ -51,12 +50,12 @@ impl LineSegment2 {
     ///
     /// ```
     /// # use fajita::plane::{p2, v2};
-    /// # use fajita::plane::line::Line2;
-    /// let l = Line2::new(p2(0.0, 2.0), v2(0.0, -2.0));
-    /// let i = l.intersect(&Line2::new(p2(2.0, 0.0), v2(-1.0, 0.0)));
+    /// # use fajita::plane::line::LineSegment2;
+    /// let l = LineSegment2::from_pv(p2(0.0, 2.0), v2(0.0, -2.0));
+    /// let i = l.intersect(&LineSegment2::from_pv(p2(2.0, 0.0), v2(-1.0, 0.0)));
     /// assert_eq!(i, Some((1.0, 2.0, p2(0.0, 0.0))));
     ///
-    /// let i = l.intersect(&Line2::new(p2(1.0, 2.0), v2(0.0, -2.0)));
+    /// let i = l.intersect(&LineSegment2::from_pv(p2(1.0, 2.0), v2(0.0, -2.0)));
     /// assert_eq!(i, None)
     /// ```
     ///

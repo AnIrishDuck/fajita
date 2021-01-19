@@ -56,10 +56,10 @@ impl Pool2 {
     }
 
 
-    pub fn get_polygon<'a>(&'a self, ix: usize) -> Polygon2<'a, &Pool2> {
+    pub fn get_polygon(&self, index: usize) -> Polygon2<&Pool2> {
         Polygon2 {
             pool: &self,
-            indices: &self.polygons[ix]
+            index
         }
     }
 }

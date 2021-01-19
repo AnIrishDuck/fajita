@@ -29,20 +29,21 @@ pub struct PolygonIs {
 }
 
 #[derive(Clone)]
-pub struct Polygon2<'a, R>
+pub struct Polygon2<R>
     where R: Clone + Borrow<Pool2>
 {
     pub pool: R,
-    pub indices: &'a PolygonIs
+    pub index: usize
 }
 
-impl<'a, R> Polygon2<'a, R>
+impl<R> Polygon2<R>
     where R: Clone + Borrow<Pool2>
     {
 
     pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
         let pool = self.pool.borrow();
-        self.indices.halfspaces.iter().map(move |hs| {
+        let indices = &pool.polygons[self.index];
+        indices.halfspaces.iter().map(move |hs| {
             let line = pool.lines[hs.line_index];
             let line = LineSegment2::new(
                 pool.points[line.a],
@@ -97,16 +98,17 @@ impl<'a, R> Polygon2<'a, R>
 
     pub fn ring(&self) -> Vec<Point2> {
         let pool = self.pool.borrow();
+        let indices = &pool.polygons[self.index];
         let mut ends: HashMap<usize, Vec<LineIs>> = HashMap::new();
-        for h in &self.indices.halfspaces {
+        for h in &indices.halfspaces {
             let l = pool.lines[h.line_index];
             ends.entry(l.a).or_insert(vec![]).push(l);
             ends.entry(l.b).or_insert(vec![]).push(l);
         }
-        let start = pool.lines[self.indices.halfspaces[0].line_index];
+        let start = pool.lines[indices.halfspaces[0].line_index];
         let mut prior: usize = start.a;
         let mut current: usize = start.b;
-        self.indices.halfspaces.iter().map(|_| {
+        indices.halfspaces.iter().map(|_| {
             let old_prior = current;
             current = ends[&current].iter()
                 .filter(|l| l.a != prior && l.b != prior)
@@ -119,7 +121,7 @@ impl<'a, R> Polygon2<'a, R>
     }
 }
 
-impl<R1, R2> PartialEq<Polygon2<'_, R2>> for Polygon2<'_, R1>
+impl<R1, R2> PartialEq<Polygon2<R2>> for Polygon2<R1>
     where R1: Clone + Borrow<Pool2>,
           R2: Clone + Borrow<Pool2> {
     fn eq(&self, other: &Polygon2<R2>) -> bool {
@@ -127,10 +129,10 @@ impl<R1, R2> PartialEq<Polygon2<'_, R2>> for Polygon2<'_, R1>
     }
 }
 
-impl <'a, R> ops::Add<Vector2> for Polygon2<'a, R>
+impl <R> ops::Add<Vector2> for Polygon2<R>
     where R: Clone + Borrow<Pool2>
     {
-    type Output = Polygon2<'a, Pool2>;
+    type Output = Polygon2<Pool2>;
 
     fn add(self, other: Vector2) -> Self::Output {
         let mut pool: Pool2 = self.pool.borrow().clone();
@@ -138,7 +140,7 @@ impl <'a, R> ops::Add<Vector2> for Polygon2<'a, R>
             *p += other;
         }
         Polygon2 {
-            indices: self.indices,
+            index: self.index,
             pool
         }
     }
@@ -186,7 +188,7 @@ fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
 /// assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
 /// assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
 /// ```
-impl<R1, R2> PartialOrd<Polygon2<'_, R2>> for Polygon2<'_, R1>
+impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
     where R1: Clone + Borrow<Pool2>,
           R2: Clone + Borrow<Pool2> {
     fn partial_cmp(&self, other: &Polygon2<R2>) -> Option<Ordering> {
@@ -215,7 +217,7 @@ mod tests {
     use crate::plane::{p2, v2};
     use super::*;
 
-    type P2<'a> = Polygon2<'a, Arc<Pool2>>;
+    type P2 = Polygon2<Arc<Pool2>>;
 
     fn square(pool: &mut Pool2) -> usize {
         pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
