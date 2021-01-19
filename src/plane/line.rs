@@ -1,14 +1,28 @@
 use std::ops;
+use std::cmp::Ordering;
 use crate::plane::{p2, Point2, Vector2};
+use cgmath::InnerSpace;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Line2 {
-    pub p: Point2,
-    pub v: Vector2
+pub struct Halfspace2 {
+    pub line: LineSegment2,
+    pub normal: Vector2
+}
+
+impl Halfspace2 {
+    pub fn contains_point(&self, p: Point2) -> Ordering {
+        (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap().reverse()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LineSegment2 {
+    pub a: Point2,
+    pub b: Point2
 }
 
 /// Represents an infinite line:
-/// 
+///
 /// ```
 /// # use fajita::plane::{p2, v2};
 /// # use fajita::plane::line::Line2;
@@ -21,16 +35,16 @@ pub struct Line2 {
 /// ```
 /// # use fajita::plane::{p2, v2};
 /// # use fajita::plane::line::Line2;
-/// let l = Line2::from_points(p2(1.0, 1.0), p2(2.0, 1.0)) + v2(1.0, 1.0);
-/// assert_eq!(l, Line2::new(p2(2.0, 2.0), v2(1.0, 0.0)));
+/// let l = Line2::new(p2(1.0, 1.0), p2(2.0, 1.0)) + v2(1.0, 1.0);
+/// assert_eq!(l, Line2::from_pv(p2(2.0, 2.0), v2(1.0, 0.0)));
 /// ```
-impl Line2 {
-    pub fn new(p: Point2, v: Vector2) -> Line2 {
-        Line2 { p, v }
+impl LineSegment2 {
+    pub fn new(a: Point2, b: Point2) -> LineSegment2 {
+        LineSegment2 { a, b }
     }
 
-    pub fn from_points(p1: Point2, p2: Point2) -> Line2 {
-        Line2 { p: p1, v: p2 - p1 }
+    pub fn from_pv(p: Point2, dp: Vector2) -> LineSegment2 {
+        LineSegment2 { a: p, b: p + dp }
     }
 
     /// Finds the intersection of this object and another:
@@ -48,28 +62,30 @@ impl Line2 {
     ///
     /// Returns the scalar multiples of `self.v` and `other.v` where the
     /// intersection occurs, and the intersection point.
-    pub fn intersect(&self, other: &Line2) -> Option<(f64, f64, Point2)> {
-        let d = other.v.y * self.v.x - other.v.x * self.v.y;
+    pub fn intersect(&self, other: &LineSegment2) -> Option<(f64, f64, Point2)> {
+        let ov = other.b - other.a;
+        let sv = self.b - self.a;
+        let d = ov.y * sv.x - ov.x * sv.y;
         if d == 0.0 {
             None
         } else {
-            let dy = self.p.y - other.p.y;
-            let dx = self.p.x - other.p.x;
-            let ua = (other.v.x * dy - other.v.y * dx) / d;
-            let ub = (self.v.x * dy - self.v.y * dx) / d;
+            let dy = self.a.y - other.a.y;
+            let dx = self.a.x - other.a.x;
+            let ua = (ov.x * dy - ov.y * dx) / d;
+            let ub = (sv.x * dy - sv.y * dx) / d;
 
-            let i = p2(self.p.x + ua * self.v.x,
-                       self.p.y + ua * self.v.y);
+            let i = p2(self.a.x + ua * sv.x,
+                       self.a.y + ua * sv.y);
 
             Some((ua, ub, i))
         }
     }
 }
 
-impl ops::Add<Vector2> for Line2 {
-    type Output = Line2;
+impl ops::Add<Vector2> for LineSegment2 {
+    type Output = LineSegment2;
 
-    fn add(self, other: Vector2) -> Self {
-        Line2::new(self.p + other, self.v)
+    fn add(self, dp: Vector2) -> Self {
+        LineSegment2::new(self.a + dp, self.b + dp)
     }
 }
