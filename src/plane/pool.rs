@@ -158,7 +158,7 @@ impl Pool2 {
                 let l = self.lines[hs.line_index];
                 let a = self.points[l.a];
                 let b = self.points[l.b];
-                divide.contains_point(a) == Ordering::Less || divide.contains_point(b) == Ordering::Less
+                divide.contains_point(a) == Ordering::Greater || divide.contains_point(b) == Ordering::Greater
             });
 
             let a = new_points[0];
@@ -193,11 +193,11 @@ mod test {
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
             let polygon = pool.get_polygon(part_ix);
             assert!(
-                original.cmp_point(polygon.center()) == Ordering::Less,
+                original.cmp_point(polygon.center()) == Ordering::Greater,
                 "center of {:?} not in original polygon", polygon.ring()
             );
             assert!(
-                polygon.cmp_point(polygon.center()) == Ordering::Less,
+                polygon.cmp_point(polygon.center()) == Ordering::Greater,
                 "center not in {:?}", polygon.ring()
             );
             for p in polygon.ring() {

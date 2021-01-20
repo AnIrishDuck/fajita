@@ -11,7 +11,7 @@ pub struct Halfspace2 {
 
 impl Halfspace2 {
     pub fn contains_point(&self, p: Point2) -> Ordering {
-        (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap().reverse()
+        (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap()
     }
 }
 
@@ -86,5 +86,23 @@ impl ops::Add<Vector2> for LineSegment2 {
 
     fn add(self, dp: Vector2) -> Self {
         LineSegment2::new(self.a + dp, self.b + dp)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::plane::{p2, v2};
+
+    #[test]
+    fn test_halfspace_direction() {
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::new(p2(0.0, 0.0), p2(1.0, 0.0))
+        };
+
+        assert_eq!(hs.contains_point(p2(1.0, 1.0)), Ordering::Less);
+        assert_eq!(hs.contains_point(p2(2.0, 0.0)), Ordering::Equal);
+        assert_eq!(hs.contains_point(p2(2.0, -1.0)), Ordering::Greater);
     }
 }

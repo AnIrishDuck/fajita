@@ -58,9 +58,9 @@ impl<R> Polygon2<R>
 
     /// Compares the given point to this polygon:
     ///
-    /// - if `p` is in `poly`, then `p < poly`
-    /// - if `p` is tangent to some segment in `poly`, then `p == poly`
-    /// - if `p` is outside of `poly`, then `p > poly`
+    /// - if `p` is in `poly`, then `poly > p`
+    /// - if `p` is tangent to some segment in `poly`, then `poly == p`
+    /// - if `p` is outside of `poly`, then `poly < p`
     ///
     /// Examples:
     ///
@@ -69,14 +69,14 @@ impl<R> Polygon2<R>
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
     /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-    /// assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Less);
+    /// assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
     /// assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
-    /// assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Greater);
+    /// assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
     /// ```
     pub fn cmp_point(&self, point: Point2) -> Ordering {
         let mut it = self.halfspaces().filter_map(|space| {
             let ord = space.contains_point(point);
-            if ord == Ordering::Less {
+            if ord == Ordering::Greater {
                 None
             } else {
                 Some(ord)
@@ -85,14 +85,14 @@ impl<R> Polygon2<R>
 
 
         let positive = it.map(|v| {
-            if v == Ordering::Greater { 1 } else { 0 }
+            if v == Ordering::Less { 1 } else { 0 }
         }).max();
 
         match positive {
             Some(v) => {
-                if v > 0 { Ordering::Greater } else { Ordering::Equal }
+                if v > 0 { Ordering::Less } else { Ordering::Equal }
             }
-            None => Ordering::Less
+            None => Ordering::Greater
         }
     }
 
@@ -205,8 +205,8 @@ impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
     where R1: Clone + Borrow<Pool2>,
           R2: Clone + Borrow<Pool2> {
     fn partial_cmp(&self, other: &Polygon2<R2>) -> Option<Ordering> {
-        let self_to_other = direction(&self, other);
-        let other_to_self = direction(other, &self);
+        let other_to_self = direction(&self, other);
+        let self_to_other = direction(other, &self);
 
         if self_to_other.is_none() || other_to_self.is_none() {
             None
@@ -259,9 +259,9 @@ mod tests {
         let mut pool = Pool2::new();
         let r = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let r = pool.get_polygon(r);
-        assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Less);
+        assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
         assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
-        assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Greater);
+        assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
     }
 
     #[test]
