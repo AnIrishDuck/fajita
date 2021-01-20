@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::iter;
 use std::ops;
-use cgmath::InnerSpace;
+use cgmath::EuclideanSpace;
 
-use crate::plane::{LineSegment2, Point2, Vector2};
+use crate::plane::{v2, LineSegment2, Point2, Vector2};
 use crate::plane::line::Halfspace2;
 use crate::plane::pool::Pool2;
 
@@ -118,6 +118,12 @@ impl<R> Polygon2<R>
             prior = old_prior;
             pool.points[old_prior]
         }).collect()
+    }
+
+    pub fn center(&self) -> Point2 {
+        let ring = self.ring();
+        let sum: Vector2 = ring.iter().map(|p| p.to_vec()).sum();
+        Point2::from_vec(sum / ring.len() as f64)
     }
 
     pub fn unlink(&self) -> Polygon2<Pool2> {

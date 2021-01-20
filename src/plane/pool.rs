@@ -158,7 +158,7 @@ impl Pool2 {
                 let l = self.lines[hs.line_index];
                 let a = self.points[l.a];
                 let b = self.points[l.b];
-                divide.contains_point(a) == Ordering::Greater || divide.contains_point(b) == Ordering::Greater
+                divide.contains_point(a) == Ordering::Less || divide.contains_point(b) == Ordering::Less
             });
 
             let a = new_points[0];
@@ -192,6 +192,14 @@ mod test {
         let other = pool.divide(ix, hs);
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
             let polygon = pool.get_polygon(part_ix);
+            assert!(
+                original.cmp_point(polygon.center()) == Ordering::Less,
+                "center of {:?} not in original polygon", polygon.ring()
+            );
+            assert!(
+                polygon.cmp_point(polygon.center()) == Ordering::Less,
+                "center not in {:?}", polygon.ring()
+            );
             for p in polygon.ring() {
                 assert!(original.cmp_point(p) == Ordering::Equal, "!({:?} == {:?})", p, original.ring())
             }
@@ -210,8 +218,11 @@ mod test {
         };
         let other = assert_division_ok(&mut pool, p, hs);
         let other = other.unwrap();
-        assert_eq!(pool.get_polygon(p).ring().len(), 4);
-        assert_eq!(pool.get_polygon(other).ring().len(), 4);
+
+        let p1 = pool.get_polygon(p);
+        let p2 = pool.get_polygon(other);
+        assert_eq!(p1.ring().len(), 4);
+        assert_eq!(p2.ring().len(), 4);
     }
 
     #[test]
