@@ -114,7 +114,7 @@ impl<R> Polygon2<R>
                 .filter(|l| l.a != prior && l.b != prior)
                 .flat_map(|l| iter::once(l.a).chain(iter::once(l.b)))
                 .filter(|p| *p != current)
-                .next().unwrap();
+                .next().expect("matching endpoint");
             prior = old_prior;
             pool.points[old_prior]
         }).collect()

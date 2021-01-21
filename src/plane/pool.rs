@@ -2,6 +2,9 @@ use crate::plane::{p2, v2, Point2, Vector2, Polygon2};
 use crate::plane::polygon::{HalfspaceIs, PolygonIs, LineIs};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::iter;
+use std::ops::Range;
+use either::{Left, Right};
 use crate::plane::line::{Halfspace2, LineSegment2};
 
 #[derive(Clone)]
@@ -118,47 +121,49 @@ impl Pool2 {
         )
     }
 
-    pub fn divide(&mut self, original_ix: usize, divide: Halfspace2) -> Option<usize> {
-        let new_parts: Vec<_> = {
-            let original = self.get_polygon(original_ix);
-            original.halfspaces().enumerate().flat_map(|(ix, hs)| {
-                let intersect = hs.line.intersect(&divide.line);
+    pub fn divide(&mut self, original_ix: usize, divide: &Halfspace2) -> Option<usize> {
+        let mut new_points = vec![];
+        let mut spaces: Vec<_> = {
+            let update = self.polygons[original_ix].halfspaces.clone();
+            update.iter().flat_map(|hs| {
+                let li = self.lines[hs.line_index];
+                let line = LineSegment2::new(self.points[li.a], self.points[li.b]);
+                let intersect = line.intersect(&divide.line);
                 let on_line = intersect.filter(|&(u_poly_line, _, _)| u_poly_line >= 0.0 && u_poly_line <= 1.0);
                 match on_line {
                     Some((_, _, pi)) => {
-                        let halfspace = self.polygons[original_ix].halfspaces[ix].clone();
-                        Some(
-                            (halfspace, pi)
+                        let i_ix = insert(&mut self.points, pi);
+                        let al = insert(&mut self.lines, LineIs { a: li.a, b: i_ix });
+                        let bl = insert(&mut self.lines, LineIs { a: i_ix, b: li.b });
+                        new_points.push(i_ix);
+                        Right(
+                            iter::once(
+                                HalfspaceIs { line_index: al, normal: hs.normal },
+                            ).chain(
+                                iter::once(
+                                    HalfspaceIs { line_index: bl, normal: hs.normal },
+                                )
+                            )
                         )
                     },
-                    None => None
+                    None => Left(iter::once(hs.clone()))
                 }
             }).collect()
         };
 
-        if new_parts.len() < 2 {
+        if new_points.len() < 2 {
             None
         } else {
-            let mut new_points = vec![];
-            let new_spaces: Vec<HalfspaceIs> = new_parts.into_iter().map(|(halfspace, i)| {
-                let i_ix = insert(&mut self.points, i);
-                new_points.push(i_ix);
-                let ref mut line = &mut self.lines[halfspace.line_index];
-                let b_ix = line.b;
-                line.b = i_ix;
-                let line_index = insert(&mut self.lines, LineIs { a: i_ix, b: b_ix });
-                HalfspaceIs { line_index, normal: halfspace.normal }
-            }).collect();
-
             let mut polygon = PolygonIs { halfspaces: vec![] };
             std::mem::swap(&mut self.polygons[original_ix], &mut polygon);
-            polygon.halfspaces.extend(new_spaces);
 
-            let (mut inside, mut outside): (Vec<_>, Vec<_>) = polygon.halfspaces.drain(..).into_iter().partition(|hs| {
+            let (mut inside, mut outside): (Vec<_>, Vec<_>) = spaces.drain(..).into_iter().partition(|hs| {
                 let l = self.lines[hs.line_index];
                 let a = self.points[l.a];
                 let b = self.points[l.b];
-                divide.contains_point(a) == Ordering::Greater || divide.contains_point(b) == Ordering::Greater
+                let o = divide.contains_point(a) == Ordering::Greater;
+                let o = o || divide.contains_point(b) == Ordering::Greater;
+                o
             });
 
             let a = new_points[0];
@@ -170,8 +175,33 @@ impl Pool2 {
 
             polygon.halfspaces = inside;
             std::mem::swap(&mut self.polygons[original_ix], &mut polygon);
-            Some(insert(&mut self.polygons, PolygonIs { halfspaces: outside }))
+            let new_ix = insert(&mut self.polygons, PolygonIs { halfspaces: outside });
+            Some(new_ix)
         }
+    }
+
+    fn fragment_from_range(&mut self, ixs: Range<usize>) {
+        let ix = 0;
+        while ix < self.polygons.len() {
+            if !ixs.contains(&ix) {
+                let r = ixs.clone();
+                for other_ix in r {
+                    self.fragment_polygon(ix, other_ix);
+                }
+            }
+        }
+    }
+
+    fn fragment_polygon(&mut self, a: usize, b: usize) -> Vec<usize> {
+        let spaces: Vec<_> = self.get_polygon(b).halfspaces().collect();
+        let fragments = vec![a];
+
+        spaces.iter().fold(fragments, |acc, hs| {
+            acc.into_iter().flat_map(|frag| {
+                let generated = self.divide(frag, hs);
+                iter::once(frag).chain(generated.into_iter())
+            }).collect()
+        })
     }
 }
 
@@ -189,7 +219,7 @@ mod test {
 
     fn assert_division_ok(pool: &mut Pool2, ix: usize, hs: Halfspace2) -> Option<usize> {
         let original = pool.get_polygon(ix).unlink();
-        let other = pool.divide(ix, hs);
+        let other = pool.divide(ix, &hs);
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
             let polygon = pool.get_polygon(part_ix);
             assert!(
@@ -206,6 +236,18 @@ mod test {
             assert!(polygon <= original, "!({:?} < {:?})", polygon.ring(), original.ring());
         }
         other
+    }
+
+    fn assert_fragment_ok(pool: &mut Pool2, a: usize, b: usize) {
+        let original = pool.get_polygon(a).unlink();
+        let fragments = pool.fragment_polygon(a, b);
+
+        for frag in fragments {
+            assert!(
+                pool.get_polygon(frag) <= original,
+                "fragment not in original"
+            )
+        }
     }
 
     #[test]
@@ -263,5 +305,14 @@ mod test {
         let b = pool.get_polygon(b);
         assert!(a > b);
         assert!(b < a);
+    }
+
+    #[test]
+    fn test_simple_fragment() {
+        let mut pool = Pool2::new();
+        let a = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = pool.rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+
+        assert_fragment_ok(&mut pool, a, b);
     }
 }
