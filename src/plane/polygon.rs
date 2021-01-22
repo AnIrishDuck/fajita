@@ -69,6 +69,7 @@ impl<R> Polygon2<R>
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
     /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// let r = r.get_polygon(0);
     /// assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
     /// assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
     /// assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
@@ -196,6 +197,9 @@ fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
 /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
 /// let inner = rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
 /// let outer = rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
+/// let r = r.get_polygon(0);
+/// let inner = inner.get_polygon(0);
+/// let outer = outer.get_polygon(0);
 /// assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
 /// assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
 /// assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
@@ -228,37 +232,36 @@ impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
 mod tests {
     use std::cmp::Ordering;
     use crate::plane::{p2, v2};
+    use crate::plane::shapes::{add_rectangle, rectangle};
     use super::*;
 
     type P2 = Polygon2<Arc<Pool2>>;
 
     fn square(pool: &mut Pool2) -> usize {
-        pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0))
+        add_rectangle(pool, p2(0.0, 0.0), v2(1.0, 1.0))
     }
 
     #[test]
     fn test_ring() {
-        let mut pool = Pool2::new();
-        let ri = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let mut new_pool = pool.clone();
-        let r = pool.get_polygon(ri);
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let mut r2 = r.clone();
+        let r = r.get_polygon(0);
 
-        for l in new_pool.lines.iter_mut() {
+        for l in r2.lines.iter_mut() {
             let mut ab = [l.a, l.b];
             ab.sort();
             let [a, b] = ab;
             *l = LineIs { a, b }
         }
 
-        let ordered = new_pool.get_polygon(ri);
+        let ordered = r2.get_polygon(0);
         assert_eq!(r.ring(), ordered.ring());
     }
 
     #[test]
     fn test_point_compare() {
-        let mut pool = Pool2::new();
-        let r = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let r = pool.get_polygon(r);
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let r = r.get_polygon(0);
         assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
         assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
         assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
@@ -266,14 +269,13 @@ mod tests {
 
     #[test]
     fn test_poly_compare() {
-        let mut pool = Pool2::new();
-        let r = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let inner = pool.rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
-        let outer = pool.rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let inner = rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
+        let outer = rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
 
-        let r = pool.get_polygon(r);
-        let inner = pool.get_polygon(inner);
-        let outer = pool.get_polygon(outer);
+        let r = r.get_polygon(0);
+        let inner = inner.get_polygon(0);
+        let outer = outer.get_polygon(0);
         assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
         assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
         assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));

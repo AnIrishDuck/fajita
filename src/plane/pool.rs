@@ -1,5 +1,6 @@
 use crate::plane::{p2, v2, Point2, Vector2, Polygon2};
 use crate::plane::polygon::{HalfspaceIs, PolygonIs, LineIs};
+use im::Vector;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter;
@@ -9,56 +10,24 @@ use crate::plane::line::{Halfspace2, LineSegment2};
 
 #[derive(Clone)]
 pub struct Pool2 {
-    pub points: Vec<Point2>,
-    pub lines: Vec<LineIs>,
-    pub polygons: Vec<PolygonIs>,
+    pub points: im::Vector<Point2>,
+    pub lines: im::Vector<LineIs>,
+    pub polygons: im::Vector<PolygonIs>,
 }
 
-pub fn insert<T>(v: &mut Vec<T>, e: T) -> usize {
+pub fn insert<T: Clone>(v: &mut im::Vector<T>, e: T) -> usize {
     let ix = v.len();
-    v.push(e);
+    v.push_back(e);
     ix
 }
 
 impl Pool2 {
     pub fn new() -> Self {
         Pool2 {
-            points: vec![],
-            lines: vec![],
-            polygons: vec![]
+            points: im::Vector::new(),
+            lines: im::Vector::new(),
+            polygons: im::Vector::new()
         }
-    }
-
-    pub fn rectangle(&mut self, origin: Point2, extent: Vector2) -> usize {
-        assert!(extent.x > 0.0 && extent.y > 0.0);
-
-        let ex = v2(extent.x, 0.0);
-        let ey = v2(0.0, extent.y);
-
-        let oo = insert(&mut self.points, origin);
-        let eo = insert(&mut self.points, origin + ex);
-        let ee = insert(&mut self.points, origin + extent);
-        let oe = insert(&mut self.points, origin + ey);
-
-        let lines = vec![
-            insert(&mut self.lines, LineIs { a: oo, b: eo }),
-            insert(&mut self.lines, LineIs { a: eo, b: ee }),
-            insert(&mut self.lines, LineIs { a: ee, b: oe }),
-            insert(&mut self.lines, LineIs { a: oe, b: oo }),
-        ];
-
-        let normals = vec![
-            v2( 0.0, -1.0),
-            v2( 1.0,  0.0),
-            v2( 0.0,  1.0),
-            v2(-1.0,  0.0),
-        ];
-
-        let halfspaces = lines.iter().zip(normals).map(|(&line_index, normal)|
-            HalfspaceIs { line_index, normal }
-        ).collect();
-
-        insert(&mut self.polygons, PolygonIs { halfspaces })
     }
 
 
@@ -75,14 +44,13 @@ impl Pool2 {
     /// # use fajita::plane::pool::Pool2;
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
-    /// let mut pool = Pool2::new();
-    /// let r1 = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// let mut r1 = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
     /// let r2 = rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
-    /// pool.extend(&r2.pool);
-    /// assert_eq!(pool.polygons.len(), 2);
-    /// assert_eq!(pool.points.len(), 6);
+    /// r1.extend(&r2);
+    /// assert_eq!(r1.polygons.len(), 2);
+    /// assert_eq!(r1.points.len(), 6);
     /// ```
-    pub fn extend(&mut self, other: &Pool2) {
+    pub fn extend(&mut self, other: &Self) {
         let self_points: HashMap<_, _> = self.points.iter().enumerate()
             .map(|(ix, p)| (exact_hash(p), ix)).collect();
 
@@ -91,9 +59,7 @@ impl Pool2 {
             match self_points.get(&h) {
                 Some(self_ix) => (ix, *self_ix),
                 None => {
-                    let self_ix = self.points.len();
-                    self.points.push(op.clone());
-                    (ix, self_ix)
+                    (ix, insert(&mut self.points, op.clone()))
                 }
             }
         }).collect();
@@ -118,13 +84,13 @@ impl Pool2 {
                     halfspaces
                 }
             })
-        )
+        );
     }
 
-    pub fn divide(&mut self, original_ix: usize, divide: &Halfspace2) -> Option<usize> {
+    pub fn divide(&mut self, ix: usize, divide: &Halfspace2) -> Option<usize> {
         let mut new_points = vec![];
         let mut spaces: Vec<_> = {
-            let update = self.polygons[original_ix].halfspaces.clone();
+            let update = self.polygons[ix].halfspaces.clone();
             update.iter().flat_map(|hs| {
                 let li = self.lines[hs.line_index];
                 let line = LineSegment2::new(self.points[li.a], self.points[li.b]);
@@ -155,7 +121,7 @@ impl Pool2 {
             None
         } else {
             let mut polygon = PolygonIs { halfspaces: vec![] };
-            std::mem::swap(&mut self.polygons[original_ix], &mut polygon);
+            std::mem::swap(&mut self.polygons[ix], &mut polygon);
 
             let (mut inside, mut outside): (Vec<_>, Vec<_>) = spaces.drain(..).into_iter().partition(|hs| {
                 let l = self.lines[hs.line_index];
@@ -174,7 +140,7 @@ impl Pool2 {
             outside.push(HalfspaceIs { line_index, normal: -normal });
 
             polygon.halfspaces = inside;
-            std::mem::swap(&mut self.polygons[original_ix], &mut polygon);
+            std::mem::swap(&mut self.polygons[ix], &mut polygon);
             let new_ix = insert(&mut self.polygons, PolygonIs { halfspaces: outside });
             Some(new_ix)
         }
@@ -215,6 +181,7 @@ fn exact_hash(p: &Point2) -> (u64, u64) {
 mod test {
     use std::cmp::Ordering;
     use crate::plane::{p2, v2};
+    use crate::plane::shapes::{rectangle, add_rectangle};
     use super::*;
 
     fn assert_division_ok(pool: &mut Pool2, ix: usize, hs: Halfspace2) -> Option<usize> {
@@ -252,55 +219,51 @@ mod test {
 
     #[test]
     fn test_simple_division() {
-        let mut pool = Pool2::new();
-        let p = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let mut r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
         };
-        let other = assert_division_ok(&mut pool, p, hs);
+        let other = assert_division_ok(&mut r, 0, hs);
         let other = other.unwrap();
 
-        let p1 = pool.get_polygon(p);
-        let p2 = pool.get_polygon(other);
+        let p1 = r.get_polygon(0);
+        let p2 = r.get_polygon(other);
         assert_eq!(p1.ring().len(), 4);
         assert_eq!(p2.ring().len(), 4);
     }
 
     #[test]
     fn test_no_division() {
-        let mut pool = Pool2::new();
-        let p = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let mut r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 1.5), v2(1.0, 0.0))
         };
-        let other = assert_division_ok(&mut pool, p, hs);
+        let other = assert_division_ok(&mut r, 0, hs);
         assert!(other.is_none());
     }
 
     #[test]
     fn test_extended_division() {
-        let mut ap = Pool2::new();
-        ap.rectangle(p2(0.0, 0.0), v2(2.0, 1.0));
-        let mut bp = Pool2::new();
-        let b = bp.rectangle(p2(1.0, 1.0), v2(1.0, 1.0));
-        let abi = ap.polygons.len() + b;
-        ap.extend(&bp);
+        let mut a = rectangle(p2(0.0, 0.0), v2(2.0, 1.0));
+        let b = rectangle(p2(1.0, 1.0), v2(1.0, 1.0));
+        let abi = a.polygons.len();
+        a.extend(&b);
 
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(0.5, 1.5), v2(1.0, 0.0))
         };
-        let other = assert_division_ok(&mut ap, abi, hs);
+        let other = assert_division_ok(&mut a, abi, hs);
         assert!(other.is_some());
     }
 
     #[test]
     fn test_equal_greater_partial_cmp() {
         let mut pool = Pool2::new();
-        let a = pool.rectangle(p2(0.0, 0.0), v2(2.0, 1.0));
-        let b = pool.rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
+        let a = add_rectangle(&mut pool, p2(0.0, 0.0), v2(2.0, 1.0));
+        let b = add_rectangle(&mut pool, p2(1.0, 0.0), v2(1.0, 1.0));
         let a = pool.get_polygon(a);
         let b = pool.get_polygon(b);
         assert!(a > b);
@@ -310,8 +273,8 @@ mod test {
     #[test]
     fn test_simple_fragment() {
         let mut pool = Pool2::new();
-        let a = pool.rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let b = pool.rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+        let a = add_rectangle(&mut pool, p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = add_rectangle(&mut pool, p2(0.5, 0.5), v2(1.0, 1.0));
 
         assert_fragment_ok(&mut pool, a, b);
     }
