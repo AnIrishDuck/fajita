@@ -57,46 +57,6 @@ impl<R> Polygon2<R>
         })
     }
 
-    /// Compares the given point to this polygon:
-    ///
-    /// - if `p` is in `poly`, then `poly > p`
-    /// - if `p` is tangent to some segment in `poly`, then `poly == p`
-    /// - if `p` is outside of `poly`, then `poly < p`
-    ///
-    /// Examples:
-    ///
-    /// ```
-    /// # use std::cmp::Ordering;
-    /// # use fajita::plane::{p2, v2};
-    /// # use fajita::plane::shapes::rectangle;
-    /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-    /// let r = r.get_polygon(0);
-    /// assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
-    /// assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
-    /// assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
-    /// ```
-    pub fn cmp_point(&self, point: Point2) -> Ordering {
-        let mut it = self.halfspaces().filter_map(|space| {
-            let ord = space.contains(&point);
-            if ord == Ordering::Greater {
-                None
-            } else {
-                Some(ord)
-            }
-        });
-
-
-        let positive = it.map(|v| {
-            if v == Ordering::Less { 1 } else { 0 }
-        }).max();
-
-        match positive {
-            Some(v) => {
-                if v > 0 { Ordering::Less } else { Ordering::Equal }
-            }
-            None => Ordering::Greater
-        }
-    }
 
     pub fn ring(&self) -> Vec<Point2> {
         let pool = self.pool.borrow();
@@ -136,6 +96,52 @@ impl<R> Polygon2<R>
     }
 }
 
+impl<R> Container<Point2> for Polygon2<R>
+    where R: Clone + Borrow<Pool2>
+    {
+    /// Compares the given point to this polygon:
+    ///
+    /// - if `p` is in `poly`, then `poly > p`
+    /// - if `p` is tangent to some segment in `poly`, then `poly == p`
+    /// - if `p` is outside of `poly`, then `poly < p`
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// # use std::cmp::Ordering;
+    /// # use fajita::plane::{p2, v2};
+    /// # use fajita::plane::shapes::rectangle;
+    /// # use fajita::util::container::Container;
+    /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// let r = r.get_polygon(0);
+    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
+    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
+    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
+    /// ```
+    fn contains(&self, point: &Point2) -> Ordering {
+        let it = self.halfspaces().filter_map(|space| {
+            let ord = space.contains(&point);
+            if ord == Ordering::Greater {
+                None
+            } else {
+                Some(ord)
+            }
+        });
+
+
+        let positive = it.map(|v| {
+            if v == Ordering::Less { 1 } else { 0 }
+        }).max();
+
+        match positive {
+            Some(v) => {
+                if v > 0 { Ordering::Less } else { Ordering::Equal }
+            }
+            None => Ordering::Greater
+        }
+    }
+}
+
 impl<R1, R2> PartialEq<Polygon2<R2>> for Polygon2<R1>
     where R1: Clone + Borrow<Pool2>,
           R2: Clone + Borrow<Pool2> {
@@ -165,7 +171,7 @@ fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
     where R1: Clone + Borrow<Pool2>,
           R2: Clone + Borrow<Pool2> {
     let points = other.ring();
-    let it = points.iter().map(|&point| p.cmp_point(point));
+    let it = points.iter().map(|&point| p.contains(&point));
     let mut it = it.skip_while(|&ord| ord == Ordering::Equal);
     let ne = it.next();
     match ne {
@@ -233,14 +239,8 @@ impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
 mod tests {
     use std::cmp::Ordering;
     use crate::plane::{p2, v2};
-    use crate::plane::shapes::{add_rectangle, rectangle};
+    use crate::plane::shapes::rectangle;
     use super::*;
-
-    type P2 = Polygon2<Arc<Pool2>>;
-
-    fn square(pool: &mut Pool2) -> usize {
-        add_rectangle(pool, p2(0.0, 0.0), v2(1.0, 1.0))
-    }
 
     #[test]
     fn test_ring() {
@@ -263,9 +263,9 @@ mod tests {
     fn test_point_compare() {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let r = r.get_polygon(0);
-        assert_eq!(r.cmp_point(p2(0.5, 0.5)), Ordering::Greater);
-        assert_eq!(r.cmp_point(p2(0.5, 0.0)), Ordering::Equal);
-        assert_eq!(r.cmp_point(p2(0.5, 2.0)), Ordering::Less);
+        assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
+        assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
+        assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
     }
 
     #[test]

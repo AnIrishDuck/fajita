@@ -191,15 +191,15 @@ mod test {
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
             let polygon = pool.get_polygon(part_ix);
             assert!(
-                original.cmp_point(polygon.center()) == Ordering::Greater,
+                original.contains(&polygon.center()) == Ordering::Greater,
                 "center of {:?} not in original polygon", polygon.ring()
             );
             assert!(
-                polygon.cmp_point(polygon.center()) == Ordering::Greater,
+                polygon.contains(&polygon.center()) == Ordering::Greater,
                 "center not in {:?}", polygon.ring()
             );
             for p in polygon.ring() {
-                assert!(original.cmp_point(p) == Ordering::Equal, "!({:?} == {:?})", p, original.ring())
+                assert!(original.contains(&p) == Ordering::Equal, "!({:?} == {:?})", p, original.ring())
             }
             assert!(polygon <= original, "!({:?} < {:?})", polygon.ring(), original.ring());
         }
