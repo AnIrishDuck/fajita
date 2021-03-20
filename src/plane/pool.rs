@@ -7,6 +7,7 @@ use std::iter;
 use std::ops::Range;
 use either::{Left, Right};
 use crate::plane::line::{Halfspace2, LineSegment2};
+use crate::util::container::Container;
 
 #[derive(Clone)]
 pub struct Pool2 {
@@ -127,8 +128,8 @@ impl Pool2 {
                 let l = self.lines[hs.line_index];
                 let a = self.points[l.a];
                 let b = self.points[l.b];
-                let o = divide.contains_point(a) == Ordering::Greater;
-                let o = o || divide.contains_point(b) == Ordering::Greater;
+                let o = divide.contains(&a) == Ordering::Greater;
+                let o = o || divide.contains(&b) == Ordering::Greater;
                 o
             });
 

@@ -10,6 +10,7 @@ use cgmath::EuclideanSpace;
 use crate::plane::{v2, LineSegment2, Point2, Vector2};
 use crate::plane::line::Halfspace2;
 use crate::plane::pool::Pool2;
+use crate::util::container::Container;
 
 #[derive(Copy, Clone, Debug)]
 pub struct LineIs {
@@ -76,7 +77,7 @@ impl<R> Polygon2<R>
     /// ```
     pub fn cmp_point(&self, point: Point2) -> Ordering {
         let mut it = self.halfspaces().filter_map(|space| {
-            let ord = space.contains_point(point);
+            let ord = space.contains(&point);
             if ord == Ordering::Greater {
                 None
             } else {
