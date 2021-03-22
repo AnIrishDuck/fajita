@@ -1,13 +1,11 @@
 use std::borrow::Borrow;
-use std::sync::Arc;
 use std::collections::HashMap;
 use std::cmp::Ordering;
-use std::fmt;
 use std::iter;
 use std::ops;
 use cgmath::EuclideanSpace;
 
-use crate::plane::{v2, LineSegment2, Point2, Vector2};
+use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::Halfspace2;
 use crate::plane::pool::Pool2;
 use crate::util::container::Container;

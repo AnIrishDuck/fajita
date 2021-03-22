@@ -1,4 +1,4 @@
-use crate::plane::{p2, v2, Point2, Vector2};
+use crate::plane::{v2, Point2, Vector2};
 use crate::plane::pool::Pool2;
 use crate::plane::polygon::{HalfspaceIs, LineIs, PolygonIs};
 

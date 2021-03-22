@@ -1,6 +1,5 @@
-use crate::plane::{p2, v2, Point2, Vector2, Polygon2};
+use crate::plane::{Point2, Polygon2};
 use crate::plane::polygon::{HalfspaceIs, PolygonIs, LineIs};
-use im::Vector;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter;
