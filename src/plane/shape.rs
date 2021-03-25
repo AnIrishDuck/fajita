@@ -9,7 +9,7 @@ use crate::plane::line::{Halfspace2, LineSegment2};
 use crate::util::container::Container;
 
 #[derive(Clone)]
-pub struct Pool2 {
+pub struct Shape2 {
     pub points: im::Vector<Point2>,
     pub lines: im::Vector<LineIs>,
     pub polygons: im::Vector<PolygonIs>,
@@ -21,9 +21,9 @@ pub fn insert<T: Clone>(v: &mut im::Vector<T>, e: T) -> usize {
     ix
 }
 
-impl Pool2 {
+impl Shape2 {
     pub fn new() -> Self {
-        Pool2 {
+        Shape2 {
             points: im::Vector::new(),
             lines: im::Vector::new(),
             polygons: im::Vector::new()
@@ -31,7 +31,7 @@ impl Pool2 {
     }
 
 
-    pub fn get_polygon(&self, index: usize) -> Polygon2<&Pool2> {
+    pub fn get_polygon(&self, index: usize) -> Polygon2<&Shape2> {
         Polygon2 {
             pool: &self,
             index
@@ -41,7 +41,7 @@ impl Pool2 {
     /// Add all parts (points, lines, and polygons) from `other` into `self`.
     ///
     /// ```
-    /// # use fajita::plane::pool::Pool2;
+    /// # use fajita::plane::shape::Shape2;
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
     /// let mut r1 = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
@@ -184,7 +184,7 @@ mod test {
     use crate::plane::shapes::{rectangle, add_rectangle};
     use super::*;
 
-    fn assert_division_ok(pool: &mut Pool2, ix: usize, hs: Halfspace2) -> Option<usize> {
+    fn assert_division_ok(pool: &mut Shape2, ix: usize, hs: Halfspace2) -> Option<usize> {
         let original = pool.get_polygon(ix).unlink();
         let other = pool.divide(ix, &hs);
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
@@ -205,7 +205,7 @@ mod test {
         other
     }
 
-    fn assert_fragment_ok(pool: &mut Pool2, a: usize, b: usize) {
+    fn assert_fragment_ok(pool: &mut Shape2, a: usize, b: usize) {
         let original = pool.get_polygon(a).unlink();
         let fragments = pool.fragment_polygon(a, b);
 
@@ -261,7 +261,7 @@ mod test {
 
     #[test]
     fn test_equal_greater_partial_cmp() {
-        let mut pool = Pool2::new();
+        let mut pool = Shape2::new();
         let a = add_rectangle(&mut pool, p2(0.0, 0.0), v2(2.0, 1.0));
         let b = add_rectangle(&mut pool, p2(1.0, 0.0), v2(1.0, 1.0));
         let a = pool.get_polygon(a);
@@ -272,7 +272,7 @@ mod test {
 
     #[test]
     fn test_simple_fragment() {
-        let mut pool = Pool2::new();
+        let mut pool = Shape2::new();
         let a = add_rectangle(&mut pool, p2(0.0, 0.0), v2(1.0, 1.0));
         let b = add_rectangle(&mut pool, p2(0.5, 0.5), v2(1.0, 1.0));
 

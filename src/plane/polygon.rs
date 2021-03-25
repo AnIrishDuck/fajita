@@ -7,7 +7,7 @@ use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::Halfspace2;
-use crate::plane::pool::Pool2;
+use crate::plane::shape::Shape2;
 use crate::util::container::Container;
 
 #[derive(Copy, Clone, Debug)]
@@ -29,14 +29,14 @@ pub struct PolygonIs {
 
 #[derive(Clone)]
 pub struct Polygon2<R>
-    where R: Clone + Borrow<Pool2>
+    where R: Clone + Borrow<Shape2>
 {
     pub pool: R,
     pub index: usize
 }
 
 impl<R> Polygon2<R>
-    where R: Clone + Borrow<Pool2>
+    where R: Clone + Borrow<Shape2>
     {
 
     pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
@@ -86,7 +86,7 @@ impl<R> Polygon2<R>
         Point2::from_vec(sum / ring.len() as f64)
     }
 
-    pub fn unlink(&self) -> Polygon2<Pool2> {
+    pub fn unlink(&self) -> Polygon2<Shape2> {
         let pool = self.pool.borrow().clone();
         Polygon2 {
             pool, index: self.index
@@ -95,7 +95,7 @@ impl<R> Polygon2<R>
 }
 
 impl<R> Container<Point2> for Polygon2<R>
-    where R: Clone + Borrow<Pool2>
+    where R: Clone + Borrow<Shape2>
     {
     /// Compares the given point to this polygon:
     ///
@@ -141,20 +141,20 @@ impl<R> Container<Point2> for Polygon2<R>
 }
 
 impl<R1, R2> PartialEq<Polygon2<R2>> for Polygon2<R1>
-    where R1: Clone + Borrow<Pool2>,
-          R2: Clone + Borrow<Pool2> {
+    where R1: Clone + Borrow<Shape2>,
+          R2: Clone + Borrow<Shape2> {
     fn eq(&self, other: &Polygon2<R2>) -> bool {
         self.partial_cmp(other) == Some(Ordering::Equal)
     }
 }
 
 impl <R> ops::Add<Vector2> for Polygon2<R>
-    where R: Clone + Borrow<Pool2>
+    where R: Clone + Borrow<Shape2>
     {
-    type Output = Polygon2<Pool2>;
+    type Output = Polygon2<Shape2>;
 
     fn add(self, other: Vector2) -> Self::Output {
-        let mut pool: Pool2 = self.pool.borrow().clone();
+        let mut pool: Shape2 = self.pool.borrow().clone();
         for p in pool.points.iter_mut() {
             *p += other;
         }
@@ -166,8 +166,8 @@ impl <R> ops::Add<Vector2> for Polygon2<R>
 }
 
 fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
-    where R1: Clone + Borrow<Pool2>,
-          R2: Clone + Borrow<Pool2> {
+    where R1: Clone + Borrow<Shape2>,
+          R2: Clone + Borrow<Shape2> {
     let points = other.ring();
     let it = points.iter().map(|&point| p.contains(&point));
     let mut it = it.skip_while(|&ord| ord == Ordering::Equal);
@@ -211,8 +211,8 @@ fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
 /// assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
 /// ```
 impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
-    where R1: Clone + Borrow<Pool2>,
-          R2: Clone + Borrow<Pool2> {
+    where R1: Clone + Borrow<Shape2>,
+          R2: Clone + Borrow<Shape2> {
     fn partial_cmp(&self, other: &Polygon2<R2>) -> Option<Ordering> {
         let other_to_self = direction(&self, other);
         let self_to_other = direction(other, &self);

@@ -1,14 +1,14 @@
 use crate::plane::{v2, Point2, Vector2};
-use crate::plane::pool::Pool2;
+use crate::plane::shape::Shape2;
 use crate::plane::polygon::{HalfspaceIs, LineIs, PolygonIs};
 
-pub fn rectangle(origin: Point2, extent: Vector2) -> Pool2 {
-    let mut p = Pool2::new();
+pub fn rectangle(origin: Point2, extent: Vector2) -> Shape2 {
+    let mut p = Shape2::new();
     add_rectangle(&mut p, origin, extent);
     p
 }
 
-pub fn add_rectangle(p: &mut Pool2, origin: Point2, extent: Vector2) -> usize {
+pub fn add_rectangle(p: &mut Shape2, origin: Point2, extent: Vector2) -> usize {
     assert!(extent.x > 0.0 && extent.y > 0.0);
 
     let ex = v2(extent.x, 0.0);
@@ -23,7 +23,6 @@ pub fn add_rectangle(p: &mut Pool2, origin: Point2, extent: Vector2) -> usize {
     ]);
 
     let line_start = p.lines.len();
-    println!("start: {}", line_start);
     p.lines.extend(vec![
         LineIs { a: point_start, b: point_start + 1 },
         LineIs { a: point_start + 1, b: point_start + 2 },

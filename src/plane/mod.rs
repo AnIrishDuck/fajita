@@ -1,6 +1,6 @@
 use cgmath;
 pub mod line;
-pub mod pool;
+pub mod shape;
 pub mod polygon;
 pub mod shapes;
 
