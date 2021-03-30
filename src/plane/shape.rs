@@ -38,6 +38,12 @@ impl Shape2 {
         }
     }
 
+    pub fn polygons(&self) -> impl Iterator<Item=Polygon2<&Shape2>> {
+        (0..self.polygons.len()).into_iter().map(move |ix| {
+            self.get_polygon(ix)
+        })
+    }
+
     /// Add all parts (points, lines, and polygons) from `other` into `self`.
     ///
     /// ```
@@ -173,6 +179,43 @@ impl Shape2 {
     }
 }
 
+impl Container<Point2> for Shape2 {
+    /// Compares the given point to this shape:
+    ///
+    /// - if `p` is in `self`, then `self > p`
+    /// - if `p` is tangent to some segment in `self`, then `self == p`
+    /// - if `p` is outside of `poly`, then `self < p`
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// # use std::cmp::Ordering;
+    /// # use fajita::plane::{p2, v2};
+    /// # use fajita::plane::shapes::rectangle;
+    /// # use fajita::util::container::Container;
+    /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
+    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
+    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
+    /// ```
+    fn contains(&self, p: &Point2) -> Ordering {
+        let mut prior_equal = false;
+        for polygon in self.polygons() {
+            match polygon.contains(p) {
+                Ordering::Greater => return Ordering::Greater,
+                Ordering::Equal => {
+                    if prior_equal {
+                        return Ordering::Greater
+                    }
+                    prior_equal = true;
+                },
+                _ => ()
+            }
+        }
+
+        if prior_equal { Ordering::Equal } else { Ordering::Less }
+    }
+}
 
 // Note that this has all the obvious issues with floating point comparisons
 fn exact_hash(p: &Point2) -> (u64, u64) {
