@@ -95,7 +95,9 @@ impl Shape2 {
                 let li = self.lines[hs.line_index];
                 let line = LineSegment2::new(self.points[li.a], self.points[li.b]);
                 let intersect = line.intersect(&divide.line);
-                let on_line = intersect.filter(|&(u_poly_line, _, _)| u_poly_line >= 0.0 && u_poly_line <= 1.0);
+                let on_line = intersect.filter(|&(u_poly_line, _, _)| {
+                    u_poly_line > 0.0 && u_poly_line < 1.0
+                });
                 match on_line {
                     Some((_, _, pi)) => {
                         let i_ix = insert(&mut self.points, pi);
@@ -239,6 +241,17 @@ mod test {
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 1.5), v2(1.0, 0.0))
+        };
+        let other = assert_division_ok(&mut r, 0, hs);
+        assert!(other.is_none());
+    }
+
+    #[test]
+    fn test_tangent_no_division() {
+        let mut r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::from_pv(p2(-1.0, 1.0), v2(1.0, 0.0))
         };
         let other = assert_division_ok(&mut r, 0, hs);
         assert!(other.is_none());
