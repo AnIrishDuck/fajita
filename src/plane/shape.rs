@@ -155,14 +155,14 @@ impl Shape2 {
     }
 
     fn fragment_from_range(&mut self, ixs: Range<usize>) {
-        let ix = 0;
-        while ix < self.polygons.len() {
-            if !ixs.contains(&ix) {
-                let r = ixs.clone();
-                for other_ix in r {
-                    self.fragment_polygon(ix, other_ix);
-                }
+        let mut ix = ixs.end;
+        let upper_bound = self.polygons.len() * (self.polygons.len() + 1);
+        while ix < self.polygons.len() && ix < upper_bound {
+            let r = ixs.clone();
+            for other_ix in r {
+                self.fragment_polygon(ix, other_ix);
             }
+            ix += 1;
         }
     }
 
@@ -176,6 +176,31 @@ impl Shape2 {
                 iter::once(frag).chain(generated.into_iter())
             }).collect()
         })
+    }
+
+    pub fn union(mut self, other: &Shape2) -> Self {
+        let start = {
+            let start = self.polygons.len();
+            self.extend(other);
+            self.fragment_from_range(0..start);
+            start
+        };
+        let (whole, mut fragments) = self.polygons.split_at(start);
+
+        self.polygons = whole;
+        fragments.retain(|f| {
+            let frag = Shape2 {
+                points: self.points.clone(),
+                lines: self.lines.clone(),
+                polygons: im::Vector::from(vec![f.clone()])
+            };
+            (0..start).into_iter().any(|ix|
+                !(frag.get_polygon(0) <= self.get_polygon(ix))
+            )
+        });
+
+        self.polygons.extend(fragments);
+        self
     }
 }
 
@@ -262,6 +287,32 @@ mod test {
         }
     }
 
+    fn assert_union_ok(a: &Shape2, b: &Shape2) {
+        let mut result = a.clone();
+        result = result.union(b);
+
+        for part in result.polygons() {
+            let points = part.ring();
+            for point in points {
+                assert!(
+                    a.contains(&point) != Ordering::Less
+                    || b.contains(&point) != Ordering::Less,
+                    format!("point {:?} not in a or b", point)
+                )
+            }
+        }
+
+        for part in a.polygons().chain(b.polygons()) {
+            let points = part.ring();
+            for point in points {
+                assert!(
+                    result.contains(&point) != Ordering::Less,
+                    format!("point {:?} not in final shape", point)
+                )
+            }
+        }
+    }
+
     #[test]
     fn test_simple_division() {
         let mut r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
@@ -333,5 +384,22 @@ mod test {
         let b = add_rectangle(&mut pool, p2(0.5, 0.5), v2(1.0, 1.0));
 
         assert_fragment_ok(&mut pool, a, b);
+    }
+
+    #[test]
+    fn test_no_fragment() {
+        let mut pool = Shape2::new();
+        let a = add_rectangle(&mut pool, p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = add_rectangle(&mut pool, p2(1.0, 0.5), v2(0.5, 0.5));
+
+        assert_fragment_ok(&mut pool, a, b);
+    }
+
+    #[test]
+    fn test_simple_union() {
+        let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+
+        assert_union_ok(&a, &b);
     }
 }
