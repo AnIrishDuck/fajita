@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::cmp::Ordering;
 use std::iter;
 use std::ops;
 use cgmath::EuclideanSpace;
@@ -8,7 +7,7 @@ use cgmath::EuclideanSpace;
 use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::Halfspace2;
 use crate::plane::shape::Shape2;
-use crate::util::container::Container;
+use crate::util::container::{Container, Orientation, PartialContainer};
 
 #[derive(Copy, Clone, Debug)]
 pub struct LineIs {
@@ -97,11 +96,7 @@ impl<R> Polygon2<R>
 impl<R> Container<Point2> for Polygon2<R>
     where R: Clone + Borrow<Shape2>
     {
-    /// Compares the given point to this polygon:
-    ///
-    /// - if `p` is in `poly`, then `poly > p`
-    /// - if `p` is tangent to some segment in `poly`, then `poly == p`
-    /// - if `p` is outside of `poly`, then `poly < p`
+    /// Checks the given point against this polygon.
     ///
     /// Examples:
     ///
@@ -109,17 +104,17 @@ impl<R> Container<Point2> for Polygon2<R>
     /// # use std::cmp::Ordering;
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
-    /// # use fajita::util::container::Container;
+    /// # use fajita::util::container::{Container, Orientation};
     /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
     /// let r = r.get_polygon(0);
-    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
-    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
-    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
+    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Orientation::In);
+    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Orientation::On);
+    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Orientation::Out);
     /// ```
-    fn contains(&self, point: &Point2) -> Ordering {
+    fn contains(&self, point: &Point2) -> Orientation {
         let it = self.halfspaces().filter_map(|space| {
             let ord = space.contains(&point);
-            if ord == Ordering::Greater {
+            if ord == Orientation::In {
                 None
             } else {
                 Some(ord)
@@ -128,23 +123,15 @@ impl<R> Container<Point2> for Polygon2<R>
 
 
         let positive = it.map(|v| {
-            if v == Ordering::Less { 1 } else { 0 }
+            if v == Orientation::Out { 1 } else { 0 }
         }).max();
 
         match positive {
             Some(v) => {
-                if v > 0 { Ordering::Less } else { Ordering::Equal }
+                if v > 0 { Orientation::Out } else { Orientation::On }
             }
-            None => Ordering::Greater
+            None => Orientation::In
         }
-    }
-}
-
-impl<R1, R2> PartialEq<Polygon2<R2>> for Polygon2<R1>
-    where R1: Clone + Borrow<Shape2>,
-          R2: Clone + Borrow<Shape2> {
-    fn eq(&self, other: &Polygon2<R2>) -> bool {
-        self.partial_cmp(other) == Some(Ordering::Equal)
     }
 }
 
@@ -165,64 +152,61 @@ impl <R> ops::Add<Vector2> for Polygon2<R>
     }
 }
 
-fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Ordering>
+fn direction<R1, R2>(p: &Polygon2<R1>, other: &Polygon2<R2>) -> Option<Orientation>
     where R1: Clone + Borrow<Shape2>,
           R2: Clone + Borrow<Shape2> {
     let points = other.ring();
     let it = points.iter().map(|&point| p.contains(&point));
-    let mut it = it.skip_while(|&ord| ord == Ordering::Equal);
+    let mut it = it.skip_while(|ord| *ord == Orientation::On);
+
     let ne = it.next();
     match ne {
         Some(dir) => {
-            if it.all(|ord| ord == dir || ord == Ordering::Equal) {
+            if it.all(|ord| ord == dir || ord == Orientation::On) {
                 Some(dir)
             } else {
                 None
             }
         }
-        None => Some(Ordering::Equal)
+        None => Some(Orientation::On)
     }
 }
 
-/// Partial ordering on polygons:
-/// - if `other` is within `self`, `other < self`
-/// - if all points inside `other` are also in `self`, and vice versa,
-///   `other == self`
-/// - if `self` is contained within `other`, `other > self`
+/// Polygons partially contain other polygons.
 ///
-/// If none of the above conditions are true (polygons are disjoint or
-/// intersect each other), return `None`.
+/// If they are not equal, or one does not fully contain the other, (polygons are
+/// disjoint or intersect each other), return `None`.
 ///
 /// Examples:
 ///
 /// ```
-/// # use std::cmp::Ordering;
 /// # use fajita::plane::{p2, v2};
 /// # use fajita::plane::shapes::rectangle;
+/// # use fajita::util::container::{PartialContainer, Orientation};
 /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
 /// let inner = rectangle(p2(0.25, 0.25), v2(0.5, 0.5));
 /// let outer = rectangle(p2(-1.0, -1.0), v2(3.0, 3.0));
 /// let r = r.get_polygon(0);
 /// let inner = inner.get_polygon(0);
 /// let outer = outer.get_polygon(0);
-/// assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
-/// assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
-/// assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
-/// assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
+/// assert_eq!(r.partial_contains(&inner), Some(Orientation::In));
+/// assert_eq!(r.partial_contains(&outer), Some(Orientation::Out));
+/// assert_eq!(r.partial_contains(&r), Some(Orientation::On));
+/// assert_eq!(r.partial_contains(&(r.clone() + v2(2.0, 0.0))), None);
 /// ```
-impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
+impl<R1, R2> PartialContainer<Polygon2<R2>> for Polygon2<R1>
     where R1: Clone + Borrow<Shape2>,
           R2: Clone + Borrow<Shape2> {
-    fn partial_cmp(&self, other: &Polygon2<R2>) -> Option<Ordering> {
+    fn partial_contains(&self, other: &Polygon2<R2>) -> Option<Orientation> {
         let other_to_self = direction(&self, other);
         let self_to_other = direction(other, &self);
 
         if self_to_other.is_none() || other_to_self.is_none() {
             None
         } else {
-            if self_to_other == Some(Ordering::Equal) {
+            if self_to_other == Some(Orientation::On) {
                 other_to_self
-            } else if other_to_self == Some(Ordering::Equal) {
+            } else if other_to_self == Some(Orientation::On) {
                 self_to_other.map(|o| o.reverse())
             } else if self_to_other != other_to_self {
                 other_to_self
@@ -235,7 +219,6 @@ impl<R1, R2> PartialOrd<Polygon2<R2>> for Polygon2<R1>
 
 #[cfg(test)]
 mod tests {
-    use std::cmp::Ordering;
     use crate::plane::{p2, v2};
     use crate::plane::shapes::rectangle;
     use super::*;
@@ -261,9 +244,9 @@ mod tests {
     fn test_point_compare() {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let r = r.get_polygon(0);
-        assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
-        assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
-        assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
+        assert_eq!(r.contains(&p2(0.5, 0.5)), Orientation::In);
+        assert_eq!(r.contains(&p2(0.5, 0.0)), Orientation::On);
+        assert_eq!(r.contains(&p2(0.5, 2.0)), Orientation::Out);
     }
 
     #[test]
@@ -275,9 +258,9 @@ mod tests {
         let r = r.get_polygon(0);
         let inner = inner.get_polygon(0);
         let outer = outer.get_polygon(0);
-        assert_eq!(r.partial_cmp(&inner), Some(Ordering::Greater));
-        assert_eq!(r.partial_cmp(&outer), Some(Ordering::Less));
-        assert_eq!(r.partial_cmp(&r), Some(Ordering::Equal));
-        assert_eq!(r.partial_cmp(&(r.clone() + v2(2.0, 0.0))), None);
+        assert_eq!(r.partial_contains(&inner), Some(Orientation::In));
+        assert_eq!(r.partial_contains(&outer), Some(Orientation::Out));
+        assert_eq!(r.partial_contains(&r), Some(Orientation::On));
+        assert_eq!(r.partial_contains(&(r.clone() + v2(2.0, 0.0))), None);
     }
 }

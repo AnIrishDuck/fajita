@@ -1,12 +1,11 @@
 use crate::plane::{Point2, Polygon2};
 use crate::plane::polygon::{HalfspaceIs, PolygonIs, LineIs};
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter;
 use std::ops::Range;
 use either::{Left, Right};
 use crate::plane::line::{Halfspace2, LineSegment2};
-use crate::util::container::Container;
+use crate::util::container::{Container, Orientation, PartialContainer};
 
 #[derive(Clone)]
 pub struct Shape2 {
@@ -135,8 +134,8 @@ impl Shape2 {
                 let l = self.lines[hs.line_index];
                 let a = self.points[l.a];
                 let b = self.points[l.b];
-                let o = divide.contains(&a) == Ordering::Greater;
-                let o = o || divide.contains(&b) == Ordering::Greater;
+                let o = divide.contains(&a) == Orientation::In;
+                let o = o || divide.contains(&b) == Orientation::In;
                 o
             });
 
@@ -194,8 +193,8 @@ impl Shape2 {
                 lines: self.lines.clone(),
                 polygons: im::Vector::from(vec![f.clone()])
             };
-            (0..start).into_iter().any(|ix|
-                !(frag.get_polygon(0) <= self.get_polygon(ix))
+            (0..start).into_iter().all(|ix|
+                self.get_polygon(ix).partial_contains(&frag.get_polygon(0)) == None
             )
         });
 
@@ -217,20 +216,20 @@ impl Container<Point2> for Shape2 {
     /// # use std::cmp::Ordering;
     /// # use fajita::plane::{p2, v2};
     /// # use fajita::plane::shapes::rectangle;
-    /// # use fajita::util::container::Container;
+    /// # use fajita::util::container::{Container, Orientation};
     /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Ordering::Greater);
-    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Ordering::Equal);
-    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Ordering::Less);
+    /// assert_eq!(r.contains(&p2(0.5, 0.5)), Orientation::In);
+    /// assert_eq!(r.contains(&p2(0.5, 0.0)), Orientation::On);
+    /// assert_eq!(r.contains(&p2(0.5, 2.0)), Orientation::Out);
     /// ```
-    fn contains(&self, p: &Point2) -> Ordering {
+    fn contains(&self, p: &Point2) -> Orientation {
         let mut prior_equal = false;
         for polygon in self.polygons() {
             match polygon.contains(p) {
-                Ordering::Greater => return Ordering::Greater,
-                Ordering::Equal => {
+                Orientation::In => return Orientation::In,
+                Orientation::On => {
                     if prior_equal {
-                        return Ordering::Greater
+                        return Orientation::In
                     }
                     prior_equal = true;
                 },
@@ -238,7 +237,7 @@ impl Container<Point2> for Shape2 {
             }
         }
 
-        if prior_equal { Ordering::Equal } else { Ordering::Less }
+        if prior_equal { Orientation::On } else { Orientation::Out }
     }
 }
 
@@ -249,7 +248,6 @@ fn exact_hash(p: &Point2) -> (u64, u64) {
 
 #[cfg(test)]
 mod test {
-    use std::cmp::Ordering;
     use crate::plane::{p2, v2};
     use crate::plane::shapes::{rectangle, add_rectangle};
     use super::*;
@@ -260,17 +258,20 @@ mod test {
         for part_ix in vec![ix].into_iter().chain(other.into_iter()).into_iter() {
             let polygon = pool.get_polygon(part_ix);
             assert!(
-                original.contains(&polygon.center()) == Ordering::Greater,
+                original.contains(&polygon.center()) == Orientation::In,
                 "center of {:?} not in original polygon", polygon.ring()
             );
             assert!(
-                polygon.contains(&polygon.center()) == Ordering::Greater,
-                "center not in {:?}", polygon.ring()
+                polygon.contains(&polygon.center()) == Orientation::In,
+                "center {:?} not in {:?}", polygon.center(), polygon.ring()
             );
             for p in polygon.ring() {
-                assert!(original.contains(&p) == Ordering::Equal, "!({:?} == {:?})", p, original.ring())
+                assert!(original.contains(&p) == Orientation::On, "!({:?} == {:?})", p, original.ring())
             }
-            assert!(polygon <= original, "!({:?} < {:?})", polygon.ring(), original.ring());
+            assert!(
+                original.partial_contains(&polygon) != Some(Orientation::Out),
+                "!({:?} < {:?})", polygon.ring(), original.ring()
+            );
         }
         other
     }
@@ -281,7 +282,7 @@ mod test {
 
         for frag in fragments {
             assert!(
-                pool.get_polygon(frag) <= original,
+                original.partial_contains(&pool.get_polygon(frag)) != Some(Orientation::Out),
                 "fragment not in original"
             )
         }
@@ -295,8 +296,8 @@ mod test {
             let points = part.ring();
             for point in points {
                 assert!(
-                    a.contains(&point) != Ordering::Less
-                    || b.contains(&point) != Ordering::Less,
+                    a.contains(&point) != Orientation::Out
+                    || b.contains(&point) != Orientation::Out,
                     format!("point {:?} not in a or b", point)
                 )
             }
@@ -306,7 +307,7 @@ mod test {
             let points = part.ring();
             for point in points {
                 assert!(
-                    result.contains(&point) != Ordering::Less,
+                    result.contains(&point) != Orientation::Out,
                     format!("point {:?} not in final shape", point)
                 )
             }
@@ -373,8 +374,8 @@ mod test {
         let b = add_rectangle(&mut pool, p2(1.0, 0.0), v2(1.0, 1.0));
         let a = pool.get_polygon(a);
         let b = pool.get_polygon(b);
-        assert!(a > b);
-        assert!(b < a);
+        assert!(a.partial_contains(&b) == Some(Orientation::In));
+        assert!(b.partial_contains(&a) == Some(Orientation::Out));
     }
 
     #[test]

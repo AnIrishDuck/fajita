@@ -1,7 +1,7 @@
 use std::ops;
 use std::cmp::Ordering;
 use crate::plane::{p2, Point2, Vector2};
-use crate::util::container::Container;
+use crate::util::container::{Container, Orientation};
 use cgmath::InnerSpace;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -11,8 +11,12 @@ pub struct Halfspace2 {
 }
 
 impl Container<Point2> for Halfspace2 {
-    fn contains(&self, p: &Point2) -> Ordering {
-        (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap()
+    fn contains(&self, p: &Point2) -> Orientation {
+        match (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap() {
+            Ordering::Less => Orientation::Out,
+            Ordering::Equal => Orientation::On,
+            Ordering::Greater => Orientation::In,
+        }
     }
 }
 
@@ -102,8 +106,8 @@ mod test {
             line: LineSegment2::new(p2(0.0, 0.0), p2(1.0, 0.0))
         };
 
-        assert_eq!(hs.contains(&p2(1.0, 1.0)), Ordering::Less);
-        assert_eq!(hs.contains(&p2(2.0, 0.0)), Ordering::Equal);
-        assert_eq!(hs.contains(&p2(2.0, -1.0)), Ordering::Greater);
+        assert_eq!(hs.contains(&p2(1.0, 1.0)), Orientation::Out);
+        assert_eq!(hs.contains(&p2(2.0, 0.0)), Orientation::On);
+        assert_eq!(hs.contains(&p2(2.0, -1.0)), Orientation::In);
     }
 }
