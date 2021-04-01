@@ -22,44 +22,76 @@ impl Container<Point2> for Halfspace2 {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum Hole {
-    Point(Point2),
-    Segment(LineSegment2)
+enum Hole<P> {
+    Point(P),
+    Segment
 }
 
-impl Knife<&LineSegment2, Option<LineSegment2>, Option<Hole>> for Halfspace2 {
-    fn cut(&self, target: &LineSegment2) -> Parts<Option<LineSegment2>, Option<Hole>> {
-        let oa = self.contains(&target.a);
-        let ob = self.contains(&target.b);
+trait Segment<P> {
+    fn from_endpoints(start: P, end: P) -> Self;
+    fn start(&self) -> P;
+    fn end(&self) -> P;
+}
+
+trait Intersect<K, I> {
+    fn intersect(&self, knife: K) -> I;
+}
+
+impl Segment<Point2> for LineSegment2 {
+    fn from_endpoints(a: Point2, b: Point2) -> Self {
+        LineSegment2 { a, b }
+    }
+
+    fn start(&self) -> Point2 { self.a }
+    fn end(&self) -> Point2 { self.b }
+}
+
+impl Intersect<Halfspace2, Option<Point2>> for LineSegment2 {
+    fn intersect(&self, knife: Halfspace2) -> Option<Point2> {
+        let intersect = knife.line.intersect(&self);
+        intersect.filter(|&(u_poly_line, _, _)| {
+            u_poly_line >= 0.0 && u_poly_line <= 1.0
+        }).map(|(_, _, p)| p)
+    }
+}
+
+impl<S, P> Knife<S, Option<S>, Option<Hole<P>>> for Halfspace2
+where
+    S: Segment<P> + Clone + Intersect<Halfspace2, Option<P>>,
+    Halfspace2: Container<P>,
+    P: Clone
+{
+    fn cut(&self, target: S) -> Parts<Option<S>, Option<Hole<P>>> {
+        let a = target.start();
+        let b = target.end();
+        let oa = self.contains(&a);
+        let ob = self.contains(&b);
 
         if oa == ob {
             if oa == Orientation::On {
-                Parts { tangent: Some(Hole::Segment(target.clone())), ..Default::default()}
+                Parts { tangent: Some(Hole::Segment), ..Default::default()}
             } else {
                 Parts::orient(oa, target.clone(), None)
             }
         } else if oa == Orientation::On {
-            Parts::orient(ob, target.clone(), Some(Hole::Point(target.a)))
+            Parts::orient(ob, target.clone(), Some(Hole::Point(a)))
         } else if ob == Orientation::On {
-            Parts::orient(oa, target.clone(), Some(Hole::Point(target.b)))
+            Parts::orient(oa, target.clone(), Some(Hole::Point(b)))
         } else {
             let (inner, outer) = if oa == Orientation::In {
-                (target.a, target.b)
+                (a, b)
             } else {
-                (target.b, target.a)
+                (b, a)
             };
 
-            let intersect = self.line.intersect(&target);
-            let on_line = intersect.filter(|&(u_poly_line, _, _)| {
-                u_poly_line >= 0.0 && u_poly_line <= 1.0
-            });
+            let intersect = target.intersect(self.clone());
 
-            match on_line {
-                Some((_, _, p)) => {
+            match intersect {
+                Some(p) => {
                     Parts {
-                        inside: Some(LineSegment2 { a: inner, b: p }),
-                        tangent: Some(Hole::Point(p)),
-                        outside: Some(LineSegment2 { a: p, b: outer }),
+                        inside: Some(S::from_endpoints(inner, p.clone())),
+                        tangent: Some(Hole::Point(p.clone())),
+                        outside: Some(S::from_endpoints(p.clone(), outer)),
                     }
                 },
                 None => Parts {
@@ -168,32 +200,31 @@ mod test {
             line: LineSegment2::new(p2(0.0, 0.0), p2(1.0, 0.0))
         };
 
-        let parts = hs.cut(&LineSegment2::new(p2(0.5, -1.0), p2(0.5, 1.0)));
+        let parts = hs.cut(LineSegment2::new(p2(0.5, -1.0), p2(0.5, 1.0)));
         assert_eq!(parts.inside, Some(LineSegment2::new(p2(0.5, -1.0), p2(0.5, 0.0))));
         assert_eq!(parts.tangent, Some(Hole::Point(p2(0.5, 0.0))));
         assert_eq!(parts.outside, Some(LineSegment2::new(p2(0.5, 0.0), p2(0.5, 1.0))));
 
 
-        let parts = hs.cut(&LineSegment2::new(p2(0.5, 1.0), p2(0.5, 2.0)));
+        let parts = hs.cut(LineSegment2::new(p2(0.5, 1.0), p2(0.5, 2.0)));
         assert_eq!(parts.inside, None);
         assert_eq!(parts.tangent, None);
         assert_eq!(parts.outside, Some(LineSegment2::new(p2(0.5, 1.0), p2(0.5, 2.0))));
 
-        let parts = hs.cut(&LineSegment2::new(p2(0.5, 0.0), p2(0.5, 2.0)));
+        let parts = hs.cut(LineSegment2::new(p2(0.5, 0.0), p2(0.5, 2.0)));
         assert_eq!(parts.inside, None);
         assert_eq!(parts.tangent, Some(Hole::Point(p2(0.5, 0.0))));
         assert_eq!(parts.outside, Some(LineSegment2::new(p2(0.5, 0.0), p2(0.5, 2.0))));
 
-        let parts = hs.cut(&LineSegment2::new(p2(0.5, -1.0), p2(0.5, -2.0)));
+        let parts = hs.cut(LineSegment2::new(p2(0.5, -1.0), p2(0.5, -2.0)));
         assert_eq!(parts.inside, Some(LineSegment2::new(p2(0.5, -1.0), p2(0.5, -2.0))));
         assert_eq!(parts.tangent, None);
         assert_eq!(parts.outside, None);
 
-
         let original = LineSegment2::new(p2(-2.0, 0.0), p2(-1.0, 0.0));
-        let parts = hs.cut(&original);
+        let parts = hs.cut(original);
         assert_eq!(parts.inside, None);
-        assert_eq!(parts.tangent, Some(Hole::Segment(original)));
+        assert_eq!(parts.tangent, Some(Hole::Segment));
         assert_eq!(parts.outside, None);
     }
 }
