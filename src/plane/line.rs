@@ -22,18 +22,18 @@ impl Container<Point2> for Halfspace2 {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum Hole<P> {
+pub enum Hole<S, P> {
     Point(P),
-    Segment
+    Segment(S)
 }
 
-trait Segment<P> {
+pub trait Segment<P> {
     fn from_endpoints(start: P, end: P) -> Self;
     fn start(&self) -> P;
     fn end(&self) -> P;
 }
 
-trait Intersect<K, I> {
+pub trait Intersect<K, I> {
     fn intersect(&self, knife: K) -> I;
 }
 
@@ -55,13 +55,13 @@ impl Intersect<Halfspace2, Option<Point2>> for LineSegment2 {
     }
 }
 
-impl<S, P> Knife<S, Option<S>, Option<Hole<P>>> for Halfspace2
+impl<S, P> Knife<S, Option<S>, Option<Hole<S, P>>> for Halfspace2
 where
     S: Segment<P> + Clone + Intersect<Halfspace2, Option<P>>,
     Halfspace2: Container<P>,
     P: Clone
 {
-    fn cut(&self, target: S) -> Parts<Option<S>, Option<Hole<P>>> {
+    fn cut(&self, target: S) -> Parts<Option<S>, Option<Hole<S, P>>> {
         let a = target.start();
         let b = target.end();
         let oa = self.contains(&a);
@@ -69,7 +69,7 @@ where
 
         if oa == ob {
             if oa == Orientation::On {
-                Parts { tangent: Some(Hole::Segment), ..Default::default()}
+                Parts { tangent: Some(Hole::Segment(target.clone())), ..Default::default()}
             } else {
                 Parts::orient(oa, target.clone(), None)
             }
