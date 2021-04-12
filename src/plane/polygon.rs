@@ -157,6 +157,11 @@ impl FlatPolygon2
         extend(&mut self.vertices, v)
     }
 
+    pub fn center(&self) -> Point2 {
+        let sum: Vector2 = self.vertices.iter().map(|v| v.point.to_vec()).sum();
+        Point2::from_vec(sum / self.vertices.len() as f64)
+    }
+
     pub fn validate(&self) -> Option<PolygonError> {
         if self.winding() == Some(Winding::Clockwise) {
             Some(PolygonError::InvalidWinding)
@@ -283,6 +288,31 @@ impl Knife<FlatPolygon2, Option<FlatPolygon2>, Vec<Vertex2>> for Halfspace2
            inside: if has_inside { Some(inside) } else { None },
            outside: if has_outside { Some(outside) } else { None },
            tangent
+        }
+    }
+}
+
+impl Container<Point2> for FlatPolygon2
+{
+    fn contains(&self, point: &Point2) -> Orientation {
+        let not_in = self.halfspaces().filter_map(|space| {
+            let ord = space.contains(point);
+            if ord == Orientation::In {
+                None
+            } else {
+                Some(ord)
+            }
+        });
+
+        let outer = not_in.map(|v| {
+            if v == Orientation::Out { 1 } else { 0 }
+        }).max();
+
+        match outer {
+            Some(v) => {
+                if v > 0 { Orientation::Out } else { Orientation::On }
+            }
+            None => Orientation::In
         }
     }
 }
@@ -495,11 +525,28 @@ mod tests {
         FlatPolygon2 { vertices }
     }
 
-    fn assert_cut_ok(polygon: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
-        let parts = hs.cut(polygon);
+    fn assert_cut_ok(original: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
+        let parts = hs.cut(original.clone());
 
         for polygon in parts.inside.iter().chain(parts.outside.iter()) {
+            let polygon = polygon.clone();
             assert_eq!(polygon.validate(), None);
+
+            assert!(
+                original.contains(&polygon.center()) == Orientation::In,
+                "center of {:?} not in original polygon", polygon.vertices
+            );
+            assert!(
+                polygon.contains(&polygon.center()) == Orientation::In,
+                "center {:?} not in {:?}", polygon.center(), polygon.vertices
+            );
+            for v in polygon.vertices {
+                let p = v.point;
+                assert!(
+                    original.contains(&p) == Orientation::On,
+                    "!({:?} == {:?})", p, original.vertices
+                )
+            }
         }
 
         parts
