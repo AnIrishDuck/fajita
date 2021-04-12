@@ -99,9 +99,9 @@ impl Winding {
         }
     }
 
-    pub fn find_from_points<'a, I>(points: I) -> Option<Self>
+    pub fn find_from_points<I>(points: I) -> Option<Self>
     where
-    I: IntoIterator<Item = &'a Point2>
+    I: IntoIterator<Item = Point2>
     {
         let mut it = points.into_iter();
         let a = it.next();
@@ -121,7 +121,7 @@ impl Winding {
 pub enum PolygonError {
     Zero,
     InvalidWinding,
-    NonConvex
+    NotConvex
 }
 
 #[derive(Clone, Debug)]
@@ -161,24 +161,29 @@ impl FlatPolygon2
         if self.winding() == Some(Winding::Clockwise) {
             Some(PolygonError::InvalidWinding)
         } else {
-            let points = self.vertices.iter().map(|v| v.point).collect();
+            let points: Vec<Point2> = self.vertices.iter().map(|v| v.point).collect();
             FlatPolygon2::new(points).err()
         }
     }
 
     pub fn winding(&self) -> Option<Winding> {
-        Winding::find_from_points(self.vertices.iter().map(|v| &v.point))
+        Winding::find_from_points(self.vertices.iter().map(|v| v.point))
     }
 
-    pub fn new(points: Vec<Point2>) -> Result<FlatPolygon2, PolygonError> {
+    pub fn new<'a, I, N>(into: N) -> Result<FlatPolygon2, PolygonError>
+    where
+    N: IntoIterator<Item = Point2, IntoIter=I>,
+    I: DoubleEndedIterator<Item = Point2> + ExactSizeIterator + Clone
+    {
+        let points = into.into_iter();
         if points.len() < 3 {
             Err(PolygonError::Zero)
         } else {
-            match Winding::find_from_points(points.iter()) {
+            match Winding::find_from_points(points.clone()) {
                 Some(winding) => {
-                    let in_order = if winding == Winding::Clockwise {
+                    let in_order: Vec<Point2> = if winding == Winding::Clockwise {
                         points.into_iter().rev().collect()
-                    } else { points };
+                    } else { points.collect() };
 
                     let vertices = in_order.into_iter().map(
                         |point| Vertex2 { index: None, point }
@@ -193,7 +198,7 @@ impl FlatPolygon2
                     if convex {
                         Ok(polygon)
                     } else {
-                        Err(PolygonError::NonConvex)
+                        Err(PolygonError::NotConvex)
                     }
                 },
                 None => Err(PolygonError::Zero)
@@ -498,6 +503,23 @@ mod tests {
         }
 
         parts
+    }
+
+    #[test]
+    fn test_validation() {
+        let linear = FlatPolygon2::new(vec![p2(0.0, 0.0), p2(1.0, 0.0), p2(2.0, 0.0)]);
+        assert_eq!(linear.err(), Some(PolygonError::Zero));
+
+        let concave = FlatPolygon2::new(vec![
+            p2(0.0, 0.0), p2(1.0, 0.5), p2(2.0, 0.0), p2(1.0, 1.0)
+        ]);
+        assert_eq!(concave.err(), Some(PolygonError::NotConvex));
+
+        let r = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let mut vertices = r.vertices;
+        vertices.reverse();
+        let reversed = FlatPolygon2 { vertices };
+        assert_eq!(reversed.validate(), Some(PolygonError::InvalidWinding));
     }
 
     #[test]
