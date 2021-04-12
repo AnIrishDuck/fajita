@@ -78,25 +78,24 @@ where
         } else if ob == Orientation::On {
             Parts::orient(oa, target.clone(), Some(Hole::Point(b)))
         } else {
-            let (inner, outer) = if oa == Orientation::In {
-                (a, b)
-            } else {
-                (b, a)
-            };
-
             let intersect = target.intersect(self.clone());
 
             match intersect {
                 Some(p) => {
+                    let sa = S::from_endpoints(a, p.clone());
+                    let sb = S::from_endpoints(p.clone(), b);
+                    let (inner, outer) = if oa == Orientation::In {
+                        (sa, sb)
+                    } else {
+                        (sb, sa)
+                    };
                     Parts {
-                        inside: Some(S::from_endpoints(inner, p.clone())),
-                        tangent: Some(Hole::Point(p.clone())),
-                        outside: Some(S::from_endpoints(p.clone(), outer)),
+                        inside: Some(inner),
+                        tangent: Some(Hole::Point(p)),
+                        outside: Some(outer),
                     }
                 },
-                None => Parts {
-                    outside: Some(target.clone()), ..Default::default()
-                }
+                None => panic!("segment crosses halfspace but no intersect found")
             }
         }
     }
@@ -228,5 +227,18 @@ mod test {
             assert_eq!(parts.tangent, Some(Hole::Segment(original)));
             assert_eq!(parts.outside, None);
         }
+    }
+
+    #[test]
+    fn test_halfspace_cuts_preserve_order() {
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
+        };
+
+        let parts = hs.cut(LineSegment2::new(p2(0.0, 1.0), p2(0.0, 0.0)));
+        assert_eq!(parts.inside, Some(LineSegment2::new(p2(0.0, 0.5), p2(0.0, 0.0))));
+        assert_eq!(parts.tangent, Some(Hole::Point(p2(0.0, 0.5))));
+        assert_eq!(parts.outside, Some(LineSegment2::new(p2(0.0, 1.0), p2(0.0, 0.5))));
     }
 }

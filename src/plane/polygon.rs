@@ -35,154 +35,250 @@ where R: Clone + Borrow<Shape2>
     pub index: usize
 }
 
-#[derive(Clone)]
-pub struct PolygonPoint2<R>
-where R: Clone + Borrow<Shape2>
+#[derive(Clone, Debug)]
+pub struct Vertex2
 {
-    pool: R,
-    ix: usize,
+    pub index: Option<usize>,
+    pub point: Point2
 }
 
-impl<R> From<&PolygonPoint2<R>> for Point2
-where R: Clone + Borrow<Shape2>
-{
-    fn from(p: &PolygonPoint2<R>) -> Point2 {
-        p.pool.borrow().points[p.ix]
+impl Container<Vertex2> for Halfspace2 {
+    fn contains(&self, v: &Vertex2) -> Orientation {
+        self.contains(&v.point)
     }
 }
 
-type CutPoint2<R> = Diff<PolygonPoint2<R>, Point2>;
-
-impl<R> Container<CutPoint2<R>> for Halfspace2
-where R: Clone + Borrow<Shape2>
+#[derive(Clone, Debug)]
+pub struct Edge2
 {
-    fn contains(&self, p: &CutPoint2<R>) -> Orientation {
-        self.contains(&resolve(p))
+    a: Vertex2,
+    b: Vertex2
+}
+
+impl Edge2
+{
+    pub fn line(&self) -> LineSegment2 {
+        LineSegment2 { a: self.a.point, b: self.b.point }
+    }
+
+    pub fn vertices(&self) -> impl Iterator<Item=Vertex2> {
+        iter::once(self.a.clone()).chain(iter::once(self.b.clone()))
     }
 }
 
-#[derive(Clone)]
-pub struct CutEdge2<R>
-where R: Clone + Borrow<Shape2>
-{
-    a: CutPoint2<R>,
-    b: CutPoint2<R>
-}
-
-impl<R> From<&CutEdge2<R>> for LineSegment2
-where R: Clone + Borrow<Shape2>
-{
-    fn from(e: &CutEdge2<R>) -> LineSegment2 {
-        let a = resolve(&e.a);
-        let b = resolve(&e.b);
-
-        LineSegment2 { a, b }
+fn extend(vertices: &mut Vec<Vertex2>, v: Vertex2) -> bool {
+    if vertices.last().iter().all(|ev| ev.point != v.point) {
+        vertices.push(v);
+        true
+    } else {
+        false
     }
 }
 
-#[derive(Clone)]
-pub enum Diff<P, N>
-{
-    Prior(P),
-    New(N)
+/// Returns the Clockwise-wound perpendicular vector for a given vector
+pub fn perpendicular(v: Vector2) -> Vector2 {
+    Vector2 { x: v.y, y: -v.x }
 }
 
-pub trait Value<T> {
-    fn value(&self) -> T;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Winding {
+    Clockwise,
+    CounterClockwise
 }
 
-fn resolve<'a, P: 'a, N: From<&'a P> + Clone>(d: &'a Diff<P, N>) -> N {
-    match d {
-        Diff::Prior(p) => N::from(&p),
-        Diff::New(n) => n.clone()
+impl Winding {
+    pub fn from_points(a: Point2, b: Point2, c: Point2) -> Option<Self> {
+        let normal = perpendicular(b - a);
+        let hs = Halfspace2 { normal, line: LineSegment2 { a, b } };
+        // perpendicular always returns a clockwise vector, and normals point out
+        // therefore Out => Clockwise
+        match hs.contains(&c) {
+            Orientation::In => Some(Winding::CounterClockwise),
+            Orientation::On => None,
+            Orientation::Out => Some(Winding::Clockwise),
+        }
+    }
+
+    pub fn find_from_points<'a, I>(points: I) -> Option<Self>
+    where
+    I: IntoIterator<Item = &'a Point2>
+    {
+        let mut it = points.into_iter();
+        let a = it.next();
+        let b = it.next();
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                it.find_map(|c| {
+                    Winding::from_points(a.clone(), b.clone(), c.clone())
+                })
+            },
+            _ => None
+        }
     }
 }
 
-impl<R> Segment<CutPoint2<R>> for CutEdge2<R>
-where R: Clone + Borrow<Shape2>
-{
-    fn from_endpoints(a: CutPoint2<R>, b: CutPoint2<R>) -> Self {
-        CutEdge2 { a, b }
-    }
-
-    fn start(&self) -> CutPoint2<R> { self.a.clone() }
-    fn end(&self) -> CutPoint2<R> { self.b.clone() }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PolygonError {
+    Zero,
+    InvalidWinding,
+    NonConvex
 }
 
-impl<R> Intersect<Halfspace2, Option<CutPoint2<R>>> for CutEdge2<R>
-where R: Clone + Borrow<Shape2>
+#[derive(Clone, Debug)]
+pub struct FlatPolygon2
 {
-    fn intersect(&self, knife: Halfspace2) -> Option<CutPoint2<R>> {
-        let intersect = knife.line.intersect(&self.into());
-        intersect.filter(|&(u_poly_line, _, _)| {
-            u_poly_line >= 0.0 && u_poly_line <= 1.0
-        }).map(|(u_poly_line, _, p)| {
-            if u_poly_line == 0.0 {
+    pub vertices: Vec<Vertex2>,
+}
+
+impl FlatPolygon2
+{
+    pub fn edges(&self) -> impl Iterator<Item=Edge2> + '_ {
+        let len = self.vertices.len();
+        (0..len).into_iter().map(move |ix| {
+            Edge2 {
+                a: self.vertices[ix].clone(),
+                b: self.vertices[(ix + 1) % len].clone()
+            }
+        })
+    }
+
+    pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
+        self.edges().map(move |e| {
+            let a = e.a.point;
+            let b = e.b.point;
+            Halfspace2 {
+                normal: perpendicular(b - a),
+                line: LineSegment2 { a, b}
+            }
+        })
+    }
+
+    pub fn extend(&mut self, v: Vertex2) -> bool {
+        extend(&mut self.vertices, v)
+    }
+
+    pub fn validate(&self) -> Option<PolygonError> {
+        if self.winding() == Some(Winding::Clockwise) {
+            Some(PolygonError::InvalidWinding)
+        } else {
+            let points = self.vertices.iter().map(|v| v.point).collect();
+            FlatPolygon2::new(points).err()
+        }
+    }
+
+    pub fn winding(&self) -> Option<Winding> {
+        Winding::find_from_points(self.vertices.iter().map(|v| &v.point))
+    }
+
+    pub fn new(points: Vec<Point2>) -> Result<FlatPolygon2, PolygonError> {
+        if points.len() < 3 {
+            Err(PolygonError::Zero)
+        } else {
+            match Winding::find_from_points(points.iter()) {
+                Some(winding) => {
+                    let in_order = if winding == Winding::Clockwise {
+                        points.into_iter().rev().collect()
+                    } else { points };
+
+                    let vertices = in_order.into_iter().map(
+                        |point| Vertex2 { index: None, point }
+                    ).collect();
+
+                    let polygon = FlatPolygon2 { vertices };
+
+                    let convex = polygon.halfspaces().all(|hs| {
+                        polygon.vertices.iter().all(|v| hs.contains(&v.point) != Orientation::Out)
+                    });
+
+                    if convex {
+                        Ok(polygon)
+                    } else {
+                        Err(PolygonError::NonConvex)
+                    }
+                },
+                None => Err(PolygonError::Zero)
+            }
+        }
+    }
+}
+
+impl Segment<Vertex2> for Edge2
+{
+    fn from_endpoints(a: Vertex2, b: Vertex2) -> Self {
+        Edge2 { a, b }
+    }
+
+    fn start(&self) -> Vertex2 { self.a.clone() }
+    fn end(&self) -> Vertex2 { self.b.clone() }
+}
+
+impl Intersect<Halfspace2, Option<Vertex2>> for Edge2
+{
+    fn intersect(&self, knife: Halfspace2) -> Option<Vertex2> {
+        let intersect = knife.line.intersect(&self.line());
+        intersect.filter(|&(_, u, _)| {
+            u >= 0.0 && u <= 1.0
+        }).map(|(_, u, p)| {
+            if u == 0.0 {
                 self.a.clone()
-            } else if u_poly_line == 1.0 {
+            } else if u == 1.0 {
                 self.b.clone()
             } else {
-                Diff::New(p)
+                Vertex2 {
+                    point: p,
+                    index: None,
+                }
             }
         })
     }
 }
 
-pub struct CutPolygon2<R>
-where R: Clone + Borrow<Shape2>
+impl Knife<FlatPolygon2, Option<FlatPolygon2>, Vec<Vertex2>> for Halfspace2
 {
-    edges: Vec<CutEdge2<R>>
-}
+    fn cut(&self, target: FlatPolygon2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
+        let mut inside = FlatPolygon2 { vertices: vec![] };
+        let mut outside = FlatPolygon2 { vertices: vec![] };
+        let mut tangent = vec![];
 
-impl<R> Knife<CutPolygon2<R>, Option<CutPolygon2<R>>, ()> for Halfspace2
-where R: Clone + Borrow<Shape2>
-{
-    fn cut(&self, target: CutPolygon2<R>) -> Parts<Option<CutPolygon2<R>>, ()> {
-        let mut inside = CutPolygon2 { edges: vec![] };
-        let mut outside = CutPolygon2 { edges: vec![] };
+        fn check_add(polygon: &mut FlatPolygon2, v: Vertex2) {
+            if polygon.vertices.last().iter().all(|ev| ev.point != v.point) {
+                polygon.vertices.push(v)
+            }
+        }
 
-        let mut points = vec![];
-        let mut segments = vec![];
-        for edge in target.edges.into_iter() {
+        fn add_start_vertex(polygon: &mut FlatPolygon2, e: &Option<Edge2>) {
+            e.into_iter().for_each(|e| check_add(polygon, e.a.clone()));
+        }
+
+        let mut has_inside = false;
+        let mut has_outside = false;
+        for edge in target.edges().into_iter() {
             let parts = self.cut(edge);
-            inside.edges.extend(parts.inside);
-            outside.edges.extend(parts.outside);
-            for hole in parts.tangent.into_iter() {
-                match hole {
-                    Hole::Point(p) => points.push(p),
-                    Hole::Segment(s) => segments.push(s)
-                }
-            }
+
+            has_inside = has_inside || parts.inside.is_some();
+            add_start_vertex(&mut inside, &parts.inside);
+            has_outside = has_outside || parts.outside.is_some();
+            add_start_vertex(&mut outside, &parts.outside);
+            match parts.tangent {
+                Some(hole) => {
+                    let p = match hole {
+                        Hole::Point(p) => p,
+                        Hole::Segment(s) => s.a
+                    };
+
+                    inside.extend(p.clone());
+                    outside.extend(p.clone());
+                    extend(&mut tangent, p);
+                },
+                None => {}
+           }
         }
 
-        let mut result = Parts {
-           inside: if inside.edges.len() > 0 { Some(inside) } else { None },
-           outside: if outside.edges.len() > 0 { Some(outside) } else { None },
-           tangent: ()
-        };
-
-        if segments.len() > 0 {
-            match result.inside.as_mut() {
-                Some(p) => p.edges.extend(segments),
-                None => {
-                    result.outside.as_mut().map(|p| p.edges.extend(segments));
-                }
-            }
-        } else if points.len() >= 2 {
-            if points.len() > 2 {
-                panic!("cut polygons cannot produce more than two points");
-            };
-
-            let mut i = points.into_iter();
-            let a = i.next().unwrap();
-            let b = i.next().unwrap();
-            let edge = CutEdge2 { a, b };
-
-            result.inside.as_mut().map(|p| p.edges.push(edge.clone()));
-            result.outside.as_mut().map(|p| p.edges.push(edge.clone()));
+        Parts {
+           inside: if has_inside { Some(inside) } else { None },
+           outside: if has_outside { Some(outside) } else { None },
+           tangent
         }
-
-        result
     }
 }
 
@@ -375,21 +471,75 @@ mod tests {
     use crate::plane::shapes::rectangle;
     use super::*;
 
-    #[test]
-    fn test_ring() {
-        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let mut r2 = r.clone();
-        let r = r.get_polygon(0);
+    pub fn flat_rectangle(origin: Point2, extent: Vector2) -> FlatPolygon2 {
+        assert!(extent.x > 0.0 && extent.y > 0.0);
 
-        for l in r2.lines.iter_mut() {
-            let mut ab = [l.a, l.b];
-            ab.sort();
-            let [a, b] = ab;
-            *l = LineIs { a, b }
+        let ex = v2(extent.x, 0.0);
+        let ey = v2(0.0, extent.y);
+
+        let vertices = vec![
+            origin,
+            origin + ex,
+            origin + extent,
+            origin + ey
+        ].into_iter().enumerate().map(|(index, point)| {
+            Vertex2 { index: Some(index), point }
+
+        }).collect();
+
+        FlatPolygon2 { vertices }
+    }
+
+    fn assert_cut_ok(polygon: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
+        let parts = hs.cut(polygon);
+
+        for polygon in parts.inside.iter().chain(parts.outside.iter()) {
+            assert_eq!(polygon.validate(), None);
         }
 
-        let ordered = r2.get_polygon(0);
-        assert_eq!(r.ring(), ordered.ring());
+        parts
+    }
+
+    #[test]
+    fn test_simple_cut() {
+        let r = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
+        };
+        let parts = assert_cut_ok(r, hs);
+
+        let p1 = parts.inside.unwrap();
+        let p2 = parts.outside.unwrap();
+        assert_eq!(p1.vertices.len(), 4);
+        assert_eq!(p2.vertices.len(), 4);
+    }
+
+    #[test]
+    fn test_no_cut() {
+        let r = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::from_pv(p2(-1.0, 1.5), v2(1.0, 0.0))
+        };
+        let parts = assert_cut_ok(r, hs);
+        let remains = parts.inside.unwrap();
+        assert_eq!(remains.vertices.len(), 4);
+        assert!(parts.outside.is_none());
+    }
+
+    #[test]
+    fn test_tangent_no_cut() {
+        let r = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let hs = Halfspace2 {
+            normal: v2(0.0, 1.0),
+            line: LineSegment2::from_pv(p2(-1.0, 1.0), v2(1.0, 0.0))
+        };
+        let parts = assert_cut_ok(r, hs);
+        let remains = parts.inside.unwrap();
+        assert_eq!(remains.vertices.len(), 4);
+        assert!(parts.outside.is_none());
+        assert_eq!(parts.tangent.len(), 2);
     }
 
     #[test]
