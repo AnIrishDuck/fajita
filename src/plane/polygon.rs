@@ -317,6 +317,29 @@ impl Container<Point2> for FlatPolygon2
     }
 }
 
+impl Knife<FlatPolygon2, Vec<FlatPolygon2>, Vec<Vertex2>> for FlatPolygon2
+{
+    fn cut(&self, target: FlatPolygon2) -> Parts<Vec<FlatPolygon2>, Vec<Vertex2>> {
+        let mut outside = vec![];
+        let mut tangent = vec![];
+
+        let mut remains = Some(target);
+        for hs in self.halfspaces() {
+            let parts = remains.map(|polygon| hs.cut(polygon));
+            remains = match parts {
+                Some(parts) => {
+                    outside.extend(parts.outside);
+                    tangent.extend(parts.tangent);
+                    parts.inside
+                }
+                None =>  None
+            }
+        }
+
+        Parts { inside: remains.into_iter().collect(), outside, tangent }
+    }
+}
+
 impl<R> Polygon2<R>
     where R: Clone + Borrow<Shape2>
     {
@@ -525,7 +548,7 @@ mod tests {
         FlatPolygon2 { vertices }
     }
 
-    fn assert_cut_ok(original: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
+    fn assert_hs_cut_ok(original: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
         let parts = hs.cut(original.clone());
 
         for polygon in parts.inside.iter().chain(parts.outside.iter()) {
@@ -552,6 +575,46 @@ mod tests {
         parts
     }
 
+    fn assert_poly_cut_ok(knife: FlatPolygon2, target: FlatPolygon2) {
+        let part = knife.cut(target.clone());
+
+        for frag in part.outside {
+            let recut = knife.cut(frag);
+
+            assert_eq!(
+                recut.inside.len(), 0,
+                "outer fragment has part inside original"
+            );
+
+            assert_eq!(
+                recut.outside.len(), 1,
+                "outer fragment does not have part outside original"
+            );
+        }
+
+        for i in part.inside.into_iter() {
+            let recut = knife.cut(i);
+
+            assert_eq!(
+                recut.inside.len(), 1,
+                "inner fragment has no part inside original"
+            );
+
+            assert_eq!(
+                recut.outside.len(), 0,
+                "inner fragment has part outside original"
+            );
+        }
+
+        for v in part.tangent.into_iter() {
+            assert!(
+                knife.contains(&v.point) == Orientation::On
+                || target.contains(&v.point) == Orientation::On,
+                "tangent point not on either shape"
+            )
+        }
+    }
+
     #[test]
     fn test_validation() {
         let linear = FlatPolygon2::new(vec![p2(0.0, 0.0), p2(1.0, 0.0), p2(2.0, 0.0)]);
@@ -576,7 +639,7 @@ mod tests {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
         };
-        let parts = assert_cut_ok(r, hs);
+        let parts = assert_hs_cut_ok(r, hs);
 
         let p1 = parts.inside.unwrap();
         let p2 = parts.outside.unwrap();
@@ -591,7 +654,7 @@ mod tests {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 1.5), v2(1.0, 0.0))
         };
-        let parts = assert_cut_ok(r, hs);
+        let parts = assert_hs_cut_ok(r, hs);
         let remains = parts.inside.unwrap();
         assert_eq!(remains.vertices.len(), 4);
         assert!(parts.outside.is_none());
@@ -604,7 +667,7 @@ mod tests {
             normal: v2(0.0, 1.0),
             line: LineSegment2::from_pv(p2(-1.0, 1.0), v2(1.0, 0.0))
         };
-        let parts = assert_cut_ok(r, hs);
+        let parts = assert_hs_cut_ok(r, hs);
         let remains = parts.inside.unwrap();
         assert_eq!(remains.vertices.len(), 4);
         assert!(parts.outside.is_none());
@@ -633,5 +696,21 @@ mod tests {
         assert_eq!(r.partial_contains(&outer), Some(Orientation::Out));
         assert_eq!(r.partial_contains(&r), Some(Orientation::On));
         assert_eq!(r.partial_contains(&(r.clone() + v2(2.0, 0.0))), None);
+    }
+
+    #[test]
+    fn test_simple_polygon_cut() {
+        let a = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = flat_rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+
+        assert_poly_cut_ok(a, b);
+    }
+
+    #[test]
+    fn test_no_polygon_cut() {
+        let a = flat_rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = flat_rectangle(p2(1.0, 0.5), v2(0.5, 0.5));
+
+        assert_poly_cut_ok(a, b);
     }
 }
