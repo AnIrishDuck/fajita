@@ -132,6 +132,10 @@ pub struct FlatPolygon2
 
 impl FlatPolygon2
 {
+    pub fn points(&self) -> impl Iterator<Item=Point2> + '_ {
+        self.vertices.iter().map(|v| v.point.clone())
+    }
+
     pub fn edges(&self) -> impl Iterator<Item=Edge2> + '_ {
         let len = self.vertices.len();
         (0..len).into_iter().map(move |ix| {
@@ -526,27 +530,8 @@ impl<R1, R2> PartialContainer<Polygon2<R2>> for Polygon2<R1>
 #[cfg(test)]
 mod tests {
     use crate::plane::{p2, v2};
-    use crate::plane::shapes::rectangle;
+    use crate::plane::shapes::{flat_rectangle, rectangle};
     use super::*;
-
-    pub fn flat_rectangle(origin: Point2, extent: Vector2) -> FlatPolygon2 {
-        assert!(extent.x > 0.0 && extent.y > 0.0);
-
-        let ex = v2(extent.x, 0.0);
-        let ey = v2(0.0, extent.y);
-
-        let vertices = vec![
-            origin,
-            origin + ex,
-            origin + extent,
-            origin + ey
-        ].into_iter().enumerate().map(|(index, point)| {
-            Vertex2 { index: Some(index), point }
-
-        }).collect();
-
-        FlatPolygon2 { vertices }
-    }
 
     fn assert_hs_cut_ok(original: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
         let parts = hs.cut(original.clone());
