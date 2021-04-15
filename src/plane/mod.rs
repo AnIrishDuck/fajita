@@ -13,5 +13,3 @@ pub fn p2<T>(x: T, y: T) -> cgmath::Point2<T> {
     cgmath::Point2::new(x, y)
 }
 pub use cgmath::vec2 as v2;
-
-pub use polygon::Polygon2 as Polygon2;
