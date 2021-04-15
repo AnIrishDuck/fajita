@@ -277,6 +277,16 @@ mod test {
     }
 
     #[test]
+    fn test_extension() {
+        let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = rectangle(p2(1.0, 0.0), v2(1.0, 1.0));
+
+        let mut shape = Shape2::empty();
+        shape.extend(vec![a, b]);
+        assert_eq!(shape.points.len(), 6);
+    }
+
+    #[test]
     fn test_simple_union() {
         let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let b = rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
