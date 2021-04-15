@@ -1,7 +1,7 @@
 use crate::plane::{v2, Point2, Vector2};
-use crate::plane::polygon::{FlatPolygon2, Vertex2};
+use crate::plane::polygon::{Polygon2, Vertex2};
 
-pub fn rectangle(origin: Point2, extent: Vector2) -> FlatPolygon2 {
+pub fn rectangle(origin: Point2, extent: Vector2) -> Polygon2 {
     assert!(extent.x > 0.0 && extent.y > 0.0);
 
     let ex = v2(extent.x, 0.0);
@@ -16,5 +16,5 @@ pub fn rectangle(origin: Point2, extent: Vector2) -> FlatPolygon2 {
         Vertex2 { index: Some(index), point }
     }).collect();
 
-    FlatPolygon2 { vertices }
+    Polygon2 { vertices }
 }

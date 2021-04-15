@@ -1,12 +1,9 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::iter;
-use std::ops;
 use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::{Halfspace2, Segment, Intersect, Hole};
-use crate::util::container::{Container, Orientation, PartialContainer};
+use crate::util::container::{Container, Orientation};
 use crate::util::knife::{Knife, Parts};
 
 #[derive(Clone, Debug)]
@@ -99,12 +96,12 @@ pub enum PolygonError {
 }
 
 #[derive(Clone, Debug)]
-pub struct FlatPolygon2
+pub struct Polygon2
 {
     pub vertices: Vec<Vertex2>,
 }
 
-impl FlatPolygon2
+impl Polygon2
 {
     pub fn points(&self) -> impl Iterator<Item=Point2> + '_ {
         self.vertices.iter().map(|v| v.point.clone())
@@ -145,7 +142,7 @@ impl FlatPolygon2
             Some(PolygonError::InvalidWinding)
         } else {
             let points: Vec<Point2> = self.vertices.iter().map(|v| v.point).collect();
-            FlatPolygon2::new(points).err()
+            Polygon2::new(points).err()
         }
     }
 
@@ -153,7 +150,7 @@ impl FlatPolygon2
         Winding::find_from_points(self.vertices.iter().map(|v| v.point))
     }
 
-    pub fn new<'a, I, N>(into: N) -> Result<FlatPolygon2, PolygonError>
+    pub fn new<'a, I, N>(into: N) -> Result<Polygon2, PolygonError>
     where
     N: IntoIterator<Item = Point2, IntoIter=I>,
     I: DoubleEndedIterator<Item = Point2> + ExactSizeIterator + Clone
@@ -172,7 +169,7 @@ impl FlatPolygon2
                         |point| Vertex2 { index: None, point }
                     ).collect();
 
-                    let polygon = FlatPolygon2 { vertices };
+                    let polygon = Polygon2 { vertices };
 
                     let convex = polygon.halfspaces().all(|hs| {
                         polygon.vertices.iter().all(|v| hs.contains(&v.point) != Orientation::Out)
@@ -221,20 +218,20 @@ impl Intersect<Halfspace2, Option<Vertex2>> for Edge2
     }
 }
 
-impl Knife<FlatPolygon2, Option<FlatPolygon2>, Vec<Vertex2>> for Halfspace2
+impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
 {
-    fn cut(&self, target: FlatPolygon2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
-        let mut inside = FlatPolygon2 { vertices: vec![] };
-        let mut outside = FlatPolygon2 { vertices: vec![] };
+    fn cut(&self, target: Polygon2) -> Parts<Option<Polygon2>, Vec<Vertex2>> {
+        let mut inside = Polygon2 { vertices: vec![] };
+        let mut outside = Polygon2 { vertices: vec![] };
         let mut tangent = vec![];
 
-        fn check_add(polygon: &mut FlatPolygon2, v: Vertex2) {
+        fn check_add(polygon: &mut Polygon2, v: Vertex2) {
             if polygon.vertices.last().iter().all(|ev| ev.point != v.point) {
                 polygon.vertices.push(v)
             }
         }
 
-        fn add_start_vertex(polygon: &mut FlatPolygon2, e: &Option<Edge2>) {
+        fn add_start_vertex(polygon: &mut Polygon2, e: &Option<Edge2>) {
             e.into_iter().for_each(|e| check_add(polygon, e.a.clone()));
         }
 
@@ -270,7 +267,7 @@ impl Knife<FlatPolygon2, Option<FlatPolygon2>, Vec<Vertex2>> for Halfspace2
     }
 }
 
-impl Container<Point2> for FlatPolygon2
+impl Container<Point2> for Polygon2
 {
     fn contains(&self, point: &Point2) -> Orientation {
         let not_in = self.halfspaces().filter_map(|space| {
@@ -295,9 +292,9 @@ impl Container<Point2> for FlatPolygon2
     }
 }
 
-impl Knife<FlatPolygon2, Vec<FlatPolygon2>, Vec<Vertex2>> for FlatPolygon2
+impl Knife<Polygon2, Vec<Polygon2>, Vec<Vertex2>> for Polygon2
 {
-    fn cut(&self, target: FlatPolygon2) -> Parts<Vec<FlatPolygon2>, Vec<Vertex2>> {
+    fn cut(&self, target: Polygon2) -> Parts<Vec<Polygon2>, Vec<Vertex2>> {
         let mut outside = vec![];
         let mut tangent = vec![];
 
@@ -324,7 +321,7 @@ mod tests {
     use crate::plane::shapes::rectangle;
     use super::*;
 
-    fn assert_hs_cut_ok(original: FlatPolygon2, hs: Halfspace2) -> Parts<Option<FlatPolygon2>, Vec<Vertex2>> {
+    fn assert_hs_cut_ok(original: Polygon2, hs: Halfspace2) -> Parts<Option<Polygon2>, Vec<Vertex2>> {
         let parts = hs.cut(original.clone());
 
         for polygon in parts.inside.iter().chain(parts.outside.iter()) {
@@ -351,7 +348,7 @@ mod tests {
         parts
     }
 
-    fn assert_poly_cut_ok(knife: FlatPolygon2, target: FlatPolygon2) {
+    fn assert_poly_cut_ok(knife: Polygon2, target: Polygon2) {
         let part = knife.cut(target.clone());
 
         for frag in part.outside {
@@ -393,10 +390,10 @@ mod tests {
 
     #[test]
     fn test_validation() {
-        let linear = FlatPolygon2::new(vec![p2(0.0, 0.0), p2(1.0, 0.0), p2(2.0, 0.0)]);
+        let linear = Polygon2::new(vec![p2(0.0, 0.0), p2(1.0, 0.0), p2(2.0, 0.0)]);
         assert_eq!(linear.err(), Some(PolygonError::Zero));
 
-        let concave = FlatPolygon2::new(vec![
+        let concave = Polygon2::new(vec![
             p2(0.0, 0.0), p2(1.0, 0.5), p2(2.0, 0.0), p2(1.0, 1.0)
         ]);
         assert_eq!(concave.err(), Some(PolygonError::NotConvex));
@@ -404,7 +401,7 @@ mod tests {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let mut vertices = r.vertices;
         vertices.reverse();
-        let reversed = FlatPolygon2 { vertices };
+        let reversed = Polygon2 { vertices };
         assert_eq!(reversed.validate(), Some(PolygonError::InvalidWinding));
     }
 

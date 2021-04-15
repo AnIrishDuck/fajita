@@ -1,5 +1,5 @@
 use crate::plane::Point2;
-use crate::plane::polygon::{FlatPolygon2, Vertex2};
+use crate::plane::polygon::{Polygon2, Vertex2};
 use std::collections::HashMap;
 use std::iter;
 use crate::util::container::{Container, Orientation};
@@ -11,14 +11,14 @@ pub struct IndexedPolygon {
 }
 
 #[derive(Clone)]
-pub struct FlatShape2 {
+pub struct Shape2 {
     pub points: im::Vector<Point2>,
     pub polygons: im::Vector<IndexedPolygon>
 }
 
-impl FlatShape2 {
+impl Shape2 {
     fn extend<I>(&mut self, it: I)
-    where I: IntoIterator<Item=FlatPolygon2> {
+    where I: IntoIterator<Item=Polygon2> {
         let mut points: HashMap<_, _> = self.points.iter().enumerate()
             .map(|(ix, p)| (exact_hash(p), ix)).collect();
 
@@ -39,7 +39,7 @@ impl FlatShape2 {
         }
     }
 
-    fn flat_polygons(&self) -> impl Iterator<Item=FlatPolygon2> + '_ {
+    fn flat_polygons(&self) -> impl Iterator<Item=Polygon2> + '_ {
         self.polygons.iter().map(move |p| {
             let vertices = p.point_ixs.iter().map(|point_ix| {
                 Vertex2 {
@@ -48,11 +48,11 @@ impl FlatShape2 {
                 }
             }).collect();
 
-            FlatPolygon2 { vertices }
+            Polygon2 { vertices }
         })
     }
 
-    fn into_flat_polygons(self) -> impl Iterator<Item=FlatPolygon2> {
+    fn into_flat_polygons(self) -> impl Iterator<Item=Polygon2> {
         let points = self.points;
         self.polygons.into_iter().map(move |p| {
             let vertices = p.point_ixs.iter().map(|point_ix| {
@@ -62,15 +62,15 @@ impl FlatShape2 {
                 }
             }).collect();
 
-            FlatPolygon2 { vertices }
+            Polygon2 { vertices }
         })
     }
 
-    fn backed_empty(&self) -> FlatShape2 {
-        FlatShape2 { points: self.points.clone(), polygons: im::Vector::new() }
+    fn backed_empty(&self) -> Shape2 {
+        Shape2 { points: self.points.clone(), polygons: im::Vector::new() }
     }
 
-    fn non_empty(self) -> Option<FlatShape2> {
+    fn non_empty(self) -> Option<Shape2> {
         if self.polygons.len() > 0 {
             Some(self)
         } else {
@@ -78,24 +78,24 @@ impl FlatShape2 {
         }
     }
 
-    pub fn union(mut self, other: &FlatShape2) -> FlatShape2 {
+    pub fn union(mut self, other: &Shape2) -> Shape2 {
         let parts = self.cut(&other);
         self.extend(parts.outside.into_iter().flat_map(|p| p.into_flat_polygons()));
         self
     }
 
-    pub fn intersect(&self, other: &FlatShape2) -> Option<FlatShape2> {
+    pub fn intersect(&self, other: &Shape2) -> Option<Shape2> {
         self.cut(&other).inside
     }
 
-    pub fn remove(&self, other: &FlatShape2) -> Option<FlatShape2> {
+    pub fn remove(&self, other: &Shape2) -> Option<Shape2> {
         other.cut(&self).outside
     }
 }
 
-impl Knife<&FlatShape2, Option<FlatShape2>, Vec<Vertex2>> for FlatPolygon2
+impl Knife<&Shape2, Option<Shape2>, Vec<Vertex2>> for Polygon2
 {
-    fn cut(&self, target: &FlatShape2) -> Parts<Option<FlatShape2>, Vec<Vertex2>> {
+    fn cut(&self, target: &Shape2) -> Parts<Option<Shape2>, Vec<Vertex2>> {
         let mut in_parts = target.backed_empty();
         let mut out_parts = target.backed_empty();
         let mut tangent = vec![];
@@ -114,9 +114,9 @@ impl Knife<&FlatShape2, Option<FlatShape2>, Vec<Vertex2>> for FlatPolygon2
     }
 }
 
-impl Knife<&FlatShape2, Option<FlatShape2>, Vec<Vertex2>> for FlatShape2
+impl Knife<&Shape2, Option<Shape2>, Vec<Vertex2>> for Shape2
 {
-    fn cut(&self, target: &FlatShape2) -> Parts<Option<FlatShape2>, Vec<Vertex2>> {
+    fn cut(&self, target: &Shape2) -> Parts<Option<Shape2>, Vec<Vertex2>> {
         let mut remains = target.clone();
         let mut in_parts = target.backed_empty();
         let mut tangent = vec![];
@@ -135,7 +135,7 @@ impl Knife<&FlatShape2, Option<FlatShape2>, Vec<Vertex2>> for FlatShape2
     }
 }
 
-impl Container<Point2> for FlatShape2 {
+impl Container<Point2> for Shape2 {
     /// Compares the given point to this shape:
     ///
     /// - if `p` is in `self`, then `self > p`
@@ -147,11 +147,11 @@ impl Container<Point2> for FlatShape2 {
     /// ```
     /// # use std::cmp::Ordering;
     /// # use fajita::plane::{p2, v2};
-    /// # use fajita::plane::shape::FlatShape2;
+    /// # use fajita::plane::shape::Shape2;
     /// # use fajita::plane::shapes::rectangle;
     /// # use fajita::util::container::{Container, Orientation};
     /// let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-    /// let s: FlatShape2 = r.into();
+    /// let s: Shape2 = r.into();
     /// assert_eq!(s.contains(&p2(0.5, 0.5)), Orientation::In);
     /// assert_eq!(s.contains(&p2(0.5, 0.0)), Orientation::On);
     /// assert_eq!(s.contains(&p2(0.5, 2.0)), Orientation::Out);
@@ -175,9 +175,9 @@ impl Container<Point2> for FlatShape2 {
     }
 }
 
-impl From<FlatPolygon2> for FlatShape2 {
-    fn from(poly: FlatPolygon2) -> FlatShape2 {
-        let mut shape = FlatShape2 {
+impl From<Polygon2> for Shape2 {
+    fn from(poly: Polygon2) -> Shape2 {
+        let mut shape = Shape2 {
             points: im::Vector::new(),
             polygons: im::Vector::new()
         };
@@ -199,7 +199,7 @@ mod test {
     use crate::plane::shapes::rectangle;
     use super::*;
 
-    fn assert_union_ok(a: &FlatShape2, b: &FlatShape2) {
+    fn assert_union_ok(a: &Shape2, b: &Shape2) {
         let result = a.clone().union(b);
 
         for part in result.flat_polygons() {
