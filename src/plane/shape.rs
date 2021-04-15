@@ -16,7 +16,21 @@ pub struct Shape2 {
     pub polygons: im::Vector<IndexedPolygon>
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ShapeError {
+    Zero,
+    BadPolygon,
+    Overlapping
+}
+
 impl Shape2 {
+    fn empty() -> Self {
+        Shape2 {
+            points: im::Vector::new(),
+            polygons: im::Vector::new()
+        }
+    }
+
     fn extend<I>(&mut self, it: I)
     where I: IntoIterator<Item=Polygon2> {
         let mut points: HashMap<_, _> = self.points.iter().enumerate()
@@ -90,6 +104,30 @@ impl Shape2 {
 
     pub fn remove(&self, other: &Shape2) -> Option<Shape2> {
         other.cut(&self).outside
+    }
+
+    pub fn validate(&self) -> Option<ShapeError> {
+        if self.polygons.len() == 0 {
+            return Some(ShapeError::Zero)
+        }
+
+        for (ix, polygon) in self.flat_polygons().enumerate() {
+            if polygon.validate().is_some() {
+                return Some(ShapeError::BadPolygon)
+            }
+
+            for (other_ix, other) in self.flat_polygons().enumerate() {
+                if ix != other_ix {
+                    let shape: Shape2 = polygon.clone().into();
+                    let intersect = shape.intersect(&other.clone().into());
+                    if intersect.is_some() {
+                        return Some(ShapeError::Overlapping)
+                    }
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -177,10 +215,7 @@ impl Container<Point2> for Shape2 {
 
 impl From<Polygon2> for Shape2 {
     fn from(poly: Polygon2) -> Shape2 {
-        let mut shape = Shape2 {
-            points: im::Vector::new(),
-            polygons: im::Vector::new()
-        };
+        let mut shape = Shape2::empty();
 
         shape.extend(iter::once(poly));
 
@@ -202,6 +237,8 @@ mod test {
     fn assert_union_ok(a: &Shape2, b: &Shape2) {
         let result = a.clone().union(b);
 
+        assert_eq!(result.validate(), None);
+
         for part in result.flat_polygons() {
             for point in part.points() {
                 assert!(
@@ -210,6 +247,11 @@ mod test {
                     format!("point {:?} not in a or b", point)
                 )
             }
+
+            assert!(
+                a.intersect(&part.clone().into()).is_some()
+                || b.intersect(&part.clone().into()).is_some()
+            );
         }
 
         for part in a.flat_polygons().chain(b.flat_polygons()) {
@@ -220,6 +262,18 @@ mod test {
                 )
             }
         }
+    }
+
+    #[test]
+    fn test_validation() {
+        let a = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = rectangle(p2(0.5, 0.5), v2(1.0, 1.0));
+
+        let mut shape = Shape2::empty();
+        assert_eq!(shape.validate(), Some(ShapeError::Zero));
+
+        shape.extend(vec![a, b]);
+        assert_eq!(shape.validate(), Some(ShapeError::Overlapping));
     }
 
     #[test]
