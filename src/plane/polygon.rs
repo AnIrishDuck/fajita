@@ -2,9 +2,11 @@ use std::iter;
 use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
-use crate::plane::line::{Halfspace2, Segment, Intersect, Hole};
+use crate::plane::line::Halfspace2;
 use crate::util::container::{Container, Orientation};
+use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
+use crate::util::segment::{Segment, Span};
 
 #[derive(Clone, Debug)]
 pub struct Vertex2
@@ -247,8 +249,8 @@ impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
             match parts.tangent {
                 Some(hole) => {
                     let p = match hole {
-                        Hole::Point(p) => p,
-                        Hole::Segment(s) => s.a
+                        Span::Point(p) => p,
+                        Span::Segment(s) => s.a
                     };
 
                     inside.extend(p.clone());

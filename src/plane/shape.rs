@@ -93,17 +93,17 @@ impl Shape2 {
     }
 
     pub fn union(mut self, other: &Shape2) -> Shape2 {
-        let parts = self.cut(&other);
+        let parts = self.cut(other);
         self.extend(parts.outside.into_iter().flat_map(|p| p.into_flat_polygons()));
         self
     }
 
     pub fn intersect(&self, other: &Shape2) -> Option<Shape2> {
-        self.cut(&other).inside
+        self.cut(other).inside
     }
 
     pub fn remove(&self, other: &Shape2) -> Option<Shape2> {
-        other.cut(&self).outside
+        other.cut(self).outside
     }
 
     pub fn validate(&self) -> Option<ShapeError> {
