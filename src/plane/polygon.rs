@@ -7,6 +7,7 @@ use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
 use crate::util::segment::{Edge, Segment, Span};
 use crate::util::vertex::Vertex;
+use crate::util::winding::Winding;
 
 pub type Vertex2 = Vertex<Point2>;
 pub type Edge2 = Edge<Point2>;
@@ -29,12 +30,6 @@ fn extend(vertices: &mut Vec<Vertex2>, v: Vertex2) -> bool {
 /// Returns the Clockwise-wound perpendicular vector for a given vector
 pub fn perpendicular(v: Vector2) -> Vector2 {
     Vector2 { x: v.y, y: -v.x }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Winding {
-    Clockwise,
-    CounterClockwise
 }
 
 impl Winding {
