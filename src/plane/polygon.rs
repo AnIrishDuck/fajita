@@ -227,14 +227,8 @@ impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
         let mut outside = Polygon2 { vertices: vec![] };
         let mut tangent = vec![];
 
-        fn check_add(polygon: &mut Polygon2, v: Vertex2) {
-            if polygon.vertices.last().iter().all(|ev| ev.point != v.point) {
-                polygon.vertices.push(v)
-            }
-        }
-
         fn add_start_vertex(polygon: &mut Polygon2, e: &Option<Edge2>) {
-            e.into_iter().for_each(|e| check_add(polygon, e.a.clone()));
+            e.into_iter().for_each(|e| { polygon.extend(e.a.clone()); });
         }
 
         let mut has_inside = false;
