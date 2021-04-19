@@ -1,4 +1,3 @@
-use std::iter;
 use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
@@ -6,36 +5,15 @@ use crate::plane::line::Halfspace2;
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
-use crate::util::segment::{Segment, Span};
+use crate::util::segment::{Edge, Segment, Span};
+use crate::util::vertex::Vertex;
 
-#[derive(Clone, Debug)]
-pub struct Vertex2
-{
-    pub index: Option<usize>,
-    pub point: Point2
-}
+pub type Vertex2 = Vertex<Point2>;
+pub type Edge2 = Edge<Point2>;
 
-impl Container<Vertex2> for Halfspace2 {
-    fn contains(&self, v: &Vertex2) -> Orientation {
-        self.contains(&v.point)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Edge2
-{
-    a: Vertex2,
-    b: Vertex2
-}
-
-impl Edge2
-{
-    pub fn line(&self) -> LineSegment2 {
-        LineSegment2 { a: self.a.point, b: self.b.point }
-    }
-
-    pub fn vertices(&self) -> impl Iterator<Item=Vertex2> {
-        iter::once(self.a.clone()).chain(iter::once(self.b.clone()))
+impl From<&Edge2> for LineSegment2 {
+    fn from(e: &Edge2) -> LineSegment2 {
+        LineSegment2 { a: e.start().point, b: e.end().point }
     }
 }
 
@@ -112,17 +90,17 @@ impl Polygon2
     pub fn edges(&self) -> impl Iterator<Item=Edge2> + '_ {
         let len = self.vertices.len();
         (0..len).into_iter().map(move |ix| {
-            Edge2 {
-                a: self.vertices[ix].clone(),
-                b: self.vertices[(ix + 1) % len].clone()
-            }
+            Edge::from_endpoints(
+                self.vertices[ix].clone(),
+                self.vertices[(ix + 1) % len].clone()
+            )
         })
     }
 
     pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
         self.edges().map(move |e| {
-            let a = e.a.point;
-            let b = e.b.point;
+            let a = e.start().point;
+            let b = e.end().point;
             Halfspace2 {
                 normal: perpendicular(b - a),
                 line: LineSegment2 { a, b}
@@ -189,27 +167,17 @@ impl Polygon2
     }
 }
 
-impl Segment<Vertex2> for Edge2
-{
-    fn from_endpoints(a: Vertex2, b: Vertex2) -> Self {
-        Edge2 { a, b }
-    }
-
-    fn start(&self) -> Vertex2 { self.a.clone() }
-    fn end(&self) -> Vertex2 { self.b.clone() }
-}
-
 impl Intersect<Halfspace2, Option<Vertex2>> for Edge2
 {
     fn intersect(&self, knife: Halfspace2) -> Option<Vertex2> {
-        let intersect = knife.line.intersect(&self.line());
+        let intersect = knife.line.intersect(&self.into());
         intersect.filter(|&(_, u, _)| {
             u >= 0.0 && u <= 1.0
         }).map(|(_, u, p)| {
             if u == 0.0 {
-                self.a.clone()
+                self.start().clone()
             } else if u == 1.0 {
-                self.b.clone()
+                self.end().clone()
             } else {
                 Vertex2 {
                     point: p,
@@ -228,7 +196,7 @@ impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
         let mut tangent = vec![];
 
         fn add_start_vertex(polygon: &mut Polygon2, e: &Option<Edge2>) {
-            e.into_iter().for_each(|e| { polygon.extend(e.a.clone()); });
+            e.into_iter().for_each(|e| { polygon.extend(e.start().clone()); });
         }
 
         let mut has_inside = false;
@@ -244,7 +212,7 @@ impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
                 Some(hole) => {
                     let p = match hole {
                         Span::Point(p) => p,
-                        Span::Segment(s) => s.a
+                        Span::Segment(s) => s.start()
                     };
 
                     inside.extend(p.clone());

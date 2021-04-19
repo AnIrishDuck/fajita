@@ -1,8 +1,10 @@
 use core::ops::Sub;
+use std::iter;
 
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::knife::{Parts, Knife};
+use crate::util::vertex::Vertex;
 
 pub trait Line<P, V> {
     fn origin(&self) -> P;
@@ -25,6 +27,29 @@ pub trait Segment<P> {
     {
         self.end() - self.start()
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct Edge<P: Clone>
+{
+    a: Vertex<P>,
+    b: Vertex<P>
+}
+
+impl<P: Clone> Edge<P>
+{
+    pub fn vertices(&self) -> impl Iterator<Item=Vertex<P>> {
+        iter::once(self.a.clone()).chain(iter::once(self.b.clone()))
+    }
+}
+
+impl<P: Clone> Segment<Vertex<P>> for Edge<P> {
+    fn from_endpoints(a: Vertex<P>, b: Vertex<P>) -> Self {
+        Edge { a, b }
+    }
+
+    fn start(&self) -> Vertex<P> { self.a.clone() }
+    fn end(&self) -> Vertex<P> { self.b.clone() }
 }
 
 impl<S, P, V> Line<P, V> for S
