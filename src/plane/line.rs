@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use crate::plane::{p2, Point2, Vector2};
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
-use crate::util::knife::{Knife, Parts};
 use crate::util::segment::Segment;
 use cgmath::InnerSpace;
 
@@ -23,7 +22,9 @@ impl Container<Point2> for Halfspace2 {
     }
 }
 
-impl Segment<Point2> for LineSegment2 {
+impl Segment for LineSegment2 {
+    type Point = Point2;
+
     fn from_endpoints(a: Point2, b: Point2) -> Self {
         LineSegment2 { a, b }
     }
@@ -32,9 +33,16 @@ impl Segment<Point2> for LineSegment2 {
     fn end(&self) -> Point2 { self.b }
 }
 
-impl Intersect<Halfspace2, Option<Point2>> for LineSegment2 {
+impl<S> Intersect<Halfspace2> for S
+where
+    S: Clone,
+    LineSegment2: From<S>
+{
+    type Output = Option<Point2>;
+
     fn intersect(&self, knife: Halfspace2) -> Option<Point2> {
-        let intersect = knife.line.intersect(&self);
+        let l = LineSegment2::from(self.clone());
+        let intersect = knife.line.intersect(&l);
         intersect.filter(|&(_, u, _)| {
             u >= 0.0 && u <= 1.0
         }).map(|(_, _, p)| p)
@@ -120,6 +128,7 @@ mod test {
     use super::*;
     use crate::plane::{p2, v2};
     use crate::util::segment::Span;
+    use crate::util::knife::Knife;
 
     #[test]
     fn test_halfspace_direction() {

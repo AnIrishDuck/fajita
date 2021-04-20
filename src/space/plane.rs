@@ -37,7 +37,9 @@ impl Container<Point3> for Halfspace3 {
     }
 }
 
-impl Segment<Point3> for LineSegment3 {
+impl Segment for LineSegment3 {
+    type Point = Point3;
+
     fn from_endpoints(a: Point3, b: Point3) -> Self {
         LineSegment3 { a, b }
     }
@@ -46,7 +48,9 @@ impl Segment<Point3> for LineSegment3 {
     fn end(&self) -> Point3 { self.b }
 }
 
-impl Intersect<Halfspace3, Option<Point3>> for LineSegment3 {
+impl Intersect<Halfspace3> for LineSegment3 {
+    type Output = Option<Point3>;
+
     fn intersect(&self, knife: Halfspace3) -> Option<Point3> {
         let v = self.vector();
         let n = knife.normal.normalize();

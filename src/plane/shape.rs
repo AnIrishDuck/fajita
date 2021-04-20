@@ -131,8 +131,11 @@ impl Shape2 {
     }
 }
 
-impl Knife<&Shape2, Option<Shape2>, Vec<Vertex2>> for Polygon2
+impl Knife<&Shape2> for Polygon2
 {
+    type Output = Option<Shape2>;
+    type Tangent = Vec<Vertex2>;
+
     fn cut(&self, target: &Shape2) -> Parts<Option<Shape2>, Vec<Vertex2>> {
         let mut in_parts = target.backed_empty();
         let mut out_parts = target.backed_empty();
@@ -152,8 +155,10 @@ impl Knife<&Shape2, Option<Shape2>, Vec<Vertex2>> for Polygon2
     }
 }
 
-impl Knife<&Shape2, Option<Shape2>, Vec<Vertex2>> for Shape2
+impl Knife<&Shape2> for Shape2
 {
+    type Output = Option<Shape2>;
+    type Tangent = Vec<Vertex2>;
     fn cut(&self, target: &Shape2) -> Parts<Option<Shape2>, Vec<Vertex2>> {
         let mut remains = target.clone();
         let mut in_parts = target.backed_empty();

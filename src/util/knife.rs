@@ -32,6 +32,9 @@ impl <IP, IT> Parts<Option<IP>, Option<IT>> {
 ///
 /// The key invariant is that all returned inner / outer parts must be in or on
 /// the original input.
-pub trait Knife<I, P, T> {
-    fn cut(&self, input: I) -> Parts<P, T>;
+pub trait Knife<I> {
+    type Output;
+    type Tangent;
+
+    fn cut(&self, input: I) -> Parts<Self::Output, Self::Tangent>;
 }

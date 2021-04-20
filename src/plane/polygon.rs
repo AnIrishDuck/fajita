@@ -18,7 +18,7 @@ impl From<&Edge2> for LineSegment2 {
     }
 }
 
-fn extend(vertices: &mut Vec<Vertex2>, v: Vertex2) -> bool {
+fn extend<P: Clone + PartialEq>(vertices: &mut Vec<Vertex<P>>, v: Vertex<P>) -> bool {
     if vertices.last().iter().all(|ev| ev.point != v.point) {
         vertices.push(v);
         true
@@ -71,18 +71,18 @@ pub enum PolygonError {
 }
 
 #[derive(Clone, Debug)]
-pub struct Polygon2
+pub struct Polygon<P: Clone>
 {
-    pub vertices: Vec<Vertex2>,
+    pub vertices: Vec<Vertex<P>>,
 }
 
-impl Polygon2
+impl<P: Clone + PartialEq> Polygon<P>
 {
-    pub fn points(&self) -> impl Iterator<Item=Point2> + '_ {
+    pub fn points(&self) -> impl Iterator<Item=P> + '_ {
         self.vertices.iter().map(|v| v.point.clone())
     }
 
-    pub fn edges(&self) -> impl Iterator<Item=Edge2> + '_ {
+    pub fn edges(&self) -> impl Iterator<Item=Edge<P>> + '_ {
         let len = self.vertices.len();
         (0..len).into_iter().map(move |ix| {
             Edge::from_endpoints(
@@ -92,6 +92,15 @@ impl Polygon2
         })
     }
 
+    pub fn extend(&mut self, v: Vertex<P>) -> bool {
+        extend(&mut self.vertices, v)
+    }
+}
+
+pub type Polygon2 = Polygon<Point2>;
+
+impl Polygon2
+{
     pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
         self.edges().map(move |e| {
             let a = e.start().point;
@@ -101,10 +110,6 @@ impl Polygon2
                 line: LineSegment2 { a, b}
             }
         })
-    }
-
-    pub fn extend(&mut self, v: Vertex2) -> bool {
-        extend(&mut self.vertices, v)
     }
 
     pub fn center(&self) -> Point2 {
@@ -162,8 +167,10 @@ impl Polygon2
     }
 }
 
-impl Intersect<Halfspace2, Option<Vertex2>> for Edge2
+impl Intersect<Halfspace2> for Edge2
 {
+    type Output = Option<Vertex2>;
+
     fn intersect(&self, knife: Halfspace2) -> Option<Vertex2> {
         let intersect = knife.line.intersect(&self.into());
         intersect.filter(|&(_, u, _)| {
@@ -183,14 +190,20 @@ impl Intersect<Halfspace2, Option<Vertex2>> for Edge2
     }
 }
 
-impl Knife<Polygon2, Option<Polygon2>, Vec<Vertex2>> for Halfspace2
+impl<K, P> Knife<Polygon<P>> for K
+where
+    K: Knife<Edge<P>, Output=Option<Edge<P>>, Tangent=Option<Span<Vertex<P>, Edge<P>>>>,
+    P: Clone + PartialEq
 {
-    fn cut(&self, target: Polygon2) -> Parts<Option<Polygon2>, Vec<Vertex2>> {
-        let mut inside = Polygon2 { vertices: vec![] };
-        let mut outside = Polygon2 { vertices: vec![] };
+    type Output = Option<Polygon<P>>;
+    type Tangent = Vec<Vertex<P>>;
+
+    fn cut(&self, target: Polygon<P>) -> Parts<Option<Polygon<P>>, Vec<Vertex<P>>> {
+        let mut inside = Polygon { vertices: vec![] };
+        let mut outside = Polygon { vertices: vec![] };
         let mut tangent = vec![];
 
-        fn add_start_vertex(polygon: &mut Polygon2, e: &Option<Edge2>) {
+        fn add_start_vertex<P: Clone + PartialEq>(polygon: &mut Polygon<P>, e: &Option<Edge<P>>) {
             e.into_iter().for_each(|e| { polygon.extend(e.start().clone()); });
         }
 
@@ -251,8 +264,11 @@ impl Container<Point2> for Polygon2
     }
 }
 
-impl Knife<Polygon2, Vec<Polygon2>, Vec<Vertex2>> for Polygon2
+impl Knife<Polygon2> for Polygon2
 {
+    type Output = Vec<Polygon2>;
+    type Tangent = Vec<Vertex2>;
+
     fn cut(&self, target: Polygon2) -> Parts<Vec<Polygon2>, Vec<Vertex2>> {
         let mut outside = vec![];
         let mut tangent = vec![];

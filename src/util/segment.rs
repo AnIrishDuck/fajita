@@ -17,13 +17,15 @@ pub enum Span<P, S> {
     Segment(S)
 }
 
-pub trait Segment<P> {
-    fn from_endpoints(start: P, end: P) -> Self;
-    fn start(&self) -> P;
-    fn end(&self) -> P;
+pub trait Segment {
+    type Point;
+
+    fn from_endpoints(start: Self::Point, end: Self::Point) -> Self;
+    fn start(&self) -> Self::Point;
+    fn end(&self) -> Self::Point;
 
     fn vector<V>(&self) -> V
-    where P: Sub<Output=V>
+    where Self::Point: Sub<Output=V>
     {
         self.end() - self.start()
     }
@@ -43,7 +45,9 @@ impl<P: Clone> Edge<P>
     }
 }
 
-impl<P: Clone> Segment<Vertex<P>> for Edge<P> {
+impl<P: Clone> Segment for Edge<P> {
+    type Point = Vertex<P>;
+
     fn from_endpoints(a: Vertex<P>, b: Vertex<P>) -> Self {
         Edge { a, b }
     }
@@ -54,20 +58,23 @@ impl<P: Clone> Segment<Vertex<P>> for Edge<P> {
 
 impl<S, P, V> Line<P, V> for S
 where
-S: Segment<P>,
+S: Segment<Point=P>,
 P: Sub<Output=V>
 {
     fn origin(&self) -> P { self.start() }
     fn direction(&self) -> V { self.vector() }
 }
 
-impl<K, S, P> Knife<S, Option<S>, Option<Span<P, S>>> for K
+impl<K, S, P> Knife<S> for K
 where
-S: Segment<P> + Intersect<K, Option<P>> + Clone,
-K: Container<P> + Clone,
-P: Clone
+    S: Segment<Point = P> + Intersect<K, Output = Option<P>> + Clone,
+    K: Container<P> + Clone,
+    P: Clone
 {
-    fn cut(&self, target: S) -> Parts<Option<S>, Option<Span<P, S>>>
+    type Output = Option<S>;
+    type Tangent = Option<Span<P, S>>;
+
+    fn cut(&self, target: S) -> Parts<Self::Output, Self::Tangent>
     {
         let knife = self;
         let a = target.start();
