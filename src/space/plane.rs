@@ -39,6 +39,35 @@ impl Container<Point3> for Halfspace3 {
 }
 
 impl Halfspace3 {
+    pub fn find_from_points<I>(points: I) -> Option<Self>
+    where
+    I: IntoIterator<Item = Point3>
+    {
+        let mut it = points.into_iter();
+        let a = it.next();
+        let b = it.next();
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                it.find_map(|c| {
+                    let v1 = b - a;
+                    let v2 = c - b;
+                    let normal = v1.cross(v2);
+                    if normal.dot(normal) != 0.0 {
+                        let hs = Halfspace3 {
+                            normal,
+                            origin: a
+                        };
+
+                        Some(hs)
+                    } else {
+                        None
+                    }
+                })
+            },
+            _ => None
+        }
+    }
+
     pub fn winding_from_points(&self, a: Point3, b: Point3, c: Point3) -> Option<Winding> {
         let v1 = b - a;
         let v2 = c - b;
