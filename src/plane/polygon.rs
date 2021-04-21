@@ -228,25 +228,7 @@ where
 impl Container<Point2> for Polygon2
 {
     fn contains(&self, point: &Point2) -> Orientation {
-        let not_in = self.halfspaces().filter_map(|space| {
-            let ord = space.contains(point);
-            if ord == Orientation::In {
-                None
-            } else {
-                Some(ord)
-            }
-        });
-
-        let outer = not_in.map(|v| {
-            if v == Orientation::Out { 1 } else { 0 }
-        }).max();
-
-        match outer {
-            Some(v) => {
-                if v > 0 { Orientation::Out } else { Orientation::On }
-            }
-            None => Orientation::In
-        }
+        Self::union(self.halfspaces(), point)
     }
 }
 

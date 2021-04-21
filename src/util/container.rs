@@ -26,6 +26,32 @@ impl Orientation {
 /// Point2) and more complex objects like halfspaces, polygons, and polyhedra.
 pub trait Container<P> {
     fn contains(&self, p: &P) -> Orientation;
+
+    fn union<C, I>(i: I, v: &P) -> Orientation
+    where
+        C: Container<P>,
+        I: IntoIterator<Item=C>
+    {
+        let not_in = i.into_iter().filter_map(|space| {
+            let ord = space.contains(v);
+            if ord == Orientation::In {
+                None
+            } else {
+                Some(ord)
+            }
+        });
+
+        let outer = not_in.map(|v| {
+            if v == Orientation::Out { 1 } else { 0 }
+        }).max();
+
+        match outer {
+            Some(v) => {
+                if v > 0 { Orientation::Out } else { Orientation::On }
+            }
+            None => Orientation::In
+        }
+    }
 }
 
 /// A type that implements `PartialContainer<P>`, like `Container<P>`, divides
