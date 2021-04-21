@@ -3,6 +3,7 @@ use crate::space::{Point3, Vector3};
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::segment::Segment;
+use crate::util::winding::Winding;
 use cgmath::{InnerSpace, EuclideanSpace};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -33,6 +34,42 @@ impl Container<Point3> for Halfspace3 {
             Ordering::Less => Orientation::Out,
             Ordering::Equal => Orientation::On,
             Ordering::Greater => Orientation::In,
+        }
+    }
+}
+
+impl Halfspace3 {
+    pub fn winding_from_points(&self, a: Point3, b: Point3, c: Point3) -> Option<Winding> {
+        let v1 = b - a;
+        let v2 = c - b;
+        let wn = v1.cross(v2);
+        // due to the right-hand-rule, the cross product of two vectors in a
+        // plane is counter-clockwise. the dot product of a vector and itself is
+        // positive, and the dot product of a vector and its inverse is negative.
+        let dot = wn.dot(self.normal);
+        if dot < 0.0 {
+            Some(Winding::Clockwise)
+        } else if dot == 0.0 {
+            None
+        } else {
+            Some(Winding::CounterClockwise)
+        }
+    }
+
+    pub fn find_winding_from_points<I>(&self, points: I) -> Option<Winding>
+    where
+    I: IntoIterator<Item = Point3>
+    {
+        let mut it = points.into_iter();
+        let a = it.next();
+        let b = it.next();
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                it.find_map(|c| {
+                    self.winding_from_points(a.clone(), b.clone(), c.clone())
+                })
+            },
+            _ => None
         }
     }
 }
@@ -122,6 +159,40 @@ mod test {
         assert_eq!(parts.inside, None);
         assert_eq!(parts.tangent, Some(Span::Segment(original)));
         assert_eq!(parts.outside, None);
+    }
+
+    #[test]
+    fn test_halfspace_winding() {
+        let hs = Halfspace3 {
+            normal: v3(0.0, 0.0, 1.0),
+            origin: p3(0.0, 0.0, 0.0)
+        };
+
+        let tri = vec![p3(0.0, 0.0, 0.0), p3(1.0, 0.0, 0.0), p3(0.0, 1.0, 0.0)];
+
+        assert_eq!(
+            hs.winding_from_points(tri[0], tri[1], tri[2]),
+            Some(Winding::CounterClockwise)
+        );
+
+        assert_eq!(
+            hs.winding_from_points(tri[2], tri[1], tri[0]),
+            Some(Winding::Clockwise)
+        );
+
+        assert_eq!(
+            hs.winding_from_points(tri[2], tri[1], tri[0]),
+            Some(Winding::Clockwise)
+        );
+
+        assert_eq!(
+            hs.winding_from_points(
+                p3(0.0, 0.0, 0.0),
+                p3(1.0, 0.0, 0.0),
+                p3(2.0, 0.0, 0.0)
+            ),
+            None
+        );
     }
 }
 
