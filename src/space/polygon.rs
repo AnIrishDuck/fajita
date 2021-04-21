@@ -1,11 +1,14 @@
-use crate::space::Point3;
-use crate::space::plane::Halfspace3;
-use crate::plane::polygon::Polygon;
+use cgmath::EuclideanSpace;
+use crate::space::{p3, v3, Point3, Vector3};
+use crate::space::plane::{Halfspace3, LineSegment3};
+use crate::plane::polygon::{Polygon2, Polygon};
 use crate::util::container::{Container, Orientation};
-use crate::util::segment::Segment;
+use crate::util::intersect::Intersect;
+use crate::util::segment::{Edge, Segment};
 use crate::util::vertex::Vertex;
 
 pub type Vertex3 = Vertex<Point3>;
+pub type Edge3 = Edge<Point3>;
 pub type Polygon3 = Polygon<Point3>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -15,11 +18,42 @@ pub enum PolygonError3 {
     NotPlanar
 }
 
+pub struct Basis3 {
+    x: Vector3,
+    y: Vector3,
+    z: Vector3,
+}
+
+impl Basis3 {
+    pub fn project(&self, p: Point3) -> Point3 {
+        Point3::from_vec(p.x * self.x + p.y * self.y + p.z * self.z)
+    }
+
+    pub fn unit() -> Self {
+        Basis3 {
+            x: v3(1.0, 0.0, 0.0),
+            y: v3(0.0, 1.0, 0.0),
+            z: v3(0.0, 0.0, 1.0),
+        }
+    }
+}
+
 impl Polygon3
 {
     pub fn validate(&self) -> Option<PolygonError3> {
         let points: Vec<Point3> = self.vertices.iter().map(|v| v.point).collect();
         Polygon3::new(points).err()
+    }
+
+    pub fn project(polygon: &Polygon2, basis: &Basis3) -> Polygon3 {
+        let vertices = polygon.vertices.iter().map(|v| {
+            Vertex3 {
+                index: None,
+                point: basis.project(p3(v.point.x, v.point.y, 0.0))
+            }
+        }).collect();
+
+        Polygon3 { vertices }
     }
 
     pub fn new<'a, I, N>(into: N) -> Result<Polygon3, PolygonError3>
@@ -64,10 +98,22 @@ impl Polygon3
     }
 }
 
+impl Intersect<Halfspace3> for Edge3
+{
+    type Output = Option<Vertex3>;
+
+    fn intersect(&self, knife: Halfspace3) -> Option<Vertex3> {
+        Edge::intersect::<_, LineSegment3>(&self, knife)
+    }
+}
+
 
 #[cfg(test)]
 mod test {
+    use crate::plane::{p2, v2};
+    use crate::plane::shapes::rectangle;
     use crate::space::p3;
+    use crate::util::knife::Knife;
     use super::*;
 
     #[test]
@@ -98,5 +144,22 @@ mod test {
             ]
         );
         assert_eq!(nonplanar.err(), Some(PolygonError3::NotPlanar));
+    }
+
+    #[test]
+    fn test_cut() {
+        let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let b = Basis3::unit();
+
+        let poly = Polygon3::project(&r, &b);
+        let hs = Halfspace3 {
+            origin: p3(0.0, 0.0, 0.0),
+            normal: v3(1.0, -1.0, 0.0)
+        };
+
+        let parts = hs.cut(poly);
+        assert!(parts.inside.is_some());
+        assert!(parts.outside.is_some());
+        assert!(parts.tangent.len() > 0);
     }
 }
