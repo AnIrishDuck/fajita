@@ -1,0 +1,6 @@
+[book]
+authors = ["Frank Murphy"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Understanding CSG"
