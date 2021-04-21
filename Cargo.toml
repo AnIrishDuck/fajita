@@ -1,6 +1,6 @@
 [package]
 name = "fajita"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Frank Murphy <fpmurphy@mtu.edu>"]
 edition = "2018"
 
