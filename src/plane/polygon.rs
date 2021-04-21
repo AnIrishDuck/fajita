@@ -172,21 +172,7 @@ impl Intersect<Halfspace2> for Edge2
     type Output = Option<Vertex2>;
 
     fn intersect(&self, knife: Halfspace2) -> Option<Vertex2> {
-        let intersect = knife.line.intersect(&self.into());
-        intersect.filter(|&(_, u, _)| {
-            u >= 0.0 && u <= 1.0
-        }).map(|(_, u, p)| {
-            if u == 0.0 {
-                self.start().clone()
-            } else if u == 1.0 {
-                self.end().clone()
-            } else {
-                Vertex2 {
-                    point: p,
-                    index: None,
-                }
-            }
-        })
+        Edge::intersect::<_, LineSegment2>(&self, knife)
     }
 }
 

@@ -43,6 +43,28 @@ impl<P: Clone> Edge<P>
     pub fn vertices(&self) -> impl Iterator<Item=Vertex<P>> {
         iter::once(self.a.clone()).chain(iter::once(self.b.clone()))
     }
+
+    pub fn intersect<K, S>(&self, knife: K) -> Option<Vertex<P>>
+    where
+        P: PartialEq,
+        S: Segment<Point=P> + Intersect<K, Output=Option<P>>
+    {
+        let a = self.a.point.clone();
+        let b = self.b.point.clone();
+        let intersect = S::from_endpoints(a, b).intersect(knife);
+        intersect.map(|p| {
+            if p == self.a.point {
+                self.a.clone()
+            } else if p == self.b.point {
+                self.b.clone()
+            } else {
+                Vertex {
+                    point: p,
+                    index: None,
+                }
+            }
+        })
+    }
 }
 
 impl<P: Clone> Segment for Edge<P> {
