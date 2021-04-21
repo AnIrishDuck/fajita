@@ -1,8 +1,10 @@
 [package]
 name = "fajita"
+description = "prototype csg library"
 version = "0.0.1"
 authors = ["Frank Murphy <fpmurphy@mtu.edu>"]
 edition = "2018"
+license = "BSD-3-Clause-Attribution"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
