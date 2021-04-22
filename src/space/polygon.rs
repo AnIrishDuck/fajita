@@ -1,6 +1,7 @@
 use cgmath::EuclideanSpace;
 use crate::space::{p3, v3, Point3, Vector3};
 use crate::space::plane::{Halfspace3, LineSegment3};
+use super::polyhedron::Face3;
 use crate::plane::polygon::{Polygon2, Polygon};
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
@@ -10,13 +11,6 @@ use crate::util::vertex::Vertex;
 pub type Vertex3 = Vertex<Point3>;
 pub type Edge3 = Edge<Point3>;
 pub type Polygon3 = Polygon<Point3>;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PolygonError3 {
-    Zero,
-    NotConvex,
-    NotPlanar
-}
 
 pub struct Basis3 {
     x: Vector3,
@@ -38,11 +32,22 @@ impl Basis3 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PolygonError3 {
+    Zero,
+    NotConvex,
+    NotPlanar
+}
+
 impl Polygon3
 {
     pub fn validate(&self) -> Option<PolygonError3> {
         let points: Vec<Point3> = self.vertices.iter().map(|v| v.point).collect();
         Polygon3::new(points).err()
+    }
+
+    pub fn face(self) -> Face3 {
+        Face3::from_wound_polygon(self).unwrap()
     }
 
     pub fn project(polygon: &Polygon2, basis: &Basis3) -> Polygon3 {
@@ -95,6 +100,17 @@ impl Polygon3
                 None => Err(PolygonError3::Zero)
             }
         }
+    }
+}
+
+impl core::ops::Add<Vector3> for Polygon3 {
+    type Output = Polygon3;
+
+    fn add(mut self, delta: Vector3) -> Self {
+        for v in self.vertices.iter_mut() {
+            *v = v.clone() + delta;
+        }
+        self
     }
 }
 

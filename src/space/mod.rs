@@ -1,6 +1,8 @@
 use cgmath;
 pub mod plane;
 pub mod polygon;
+pub mod polyhedron;
+pub mod solids;
 
 pub type Point3 = cgmath::Point3<f64>;
 pub type Vector3 = cgmath::Vector3<f64>;
