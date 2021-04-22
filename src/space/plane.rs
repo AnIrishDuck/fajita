@@ -30,10 +30,16 @@ pub struct Halfspace3 {
 
 impl Container<Point3> for Halfspace3 {
     fn contains(&self, p: &Point3) -> Orientation {
-        match (self.origin - p).dot(self.normal).partial_cmp(&0.0).unwrap() {
-            Ordering::Less => Orientation::Out,
+        self.contains(&(p - self.origin))
+    }
+}
+
+impl Container<Vector3> for Halfspace3 {
+    fn contains(&self, v: &Vector3) -> Orientation {
+        match v.dot(self.normal).partial_cmp(&0.0).unwrap() {
+            Ordering::Less => Orientation::In,
             Ordering::Equal => Orientation::On,
-            Ordering::Greater => Orientation::In,
+            Ordering::Greater => Orientation::Out,
         }
     }
 }
@@ -149,6 +155,9 @@ mod test {
             normal: v3(0.0, 0.0, 1.0),
             origin: p3(0.0, 0.0, 5.0)
         };
+
+        assert_eq!(hs.contains(&v3(1.0, 1.0, 1.0)), Orientation::Out);
+        assert_eq!(hs.contains(&-v3(1.0, 1.0, 1.0)), Orientation::In);
 
         assert_eq!(hs.contains(&p3(1.0, 1.0, 0.0)), Orientation::In);
         assert_eq!(hs.contains(&p3(2.0, 0.0, 5.0)), Orientation::On);
