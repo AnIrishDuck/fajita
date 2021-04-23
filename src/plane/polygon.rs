@@ -19,7 +19,9 @@ impl From<&Edge2> for LineSegment2 {
 }
 
 fn extend<P: Clone + PartialEq>(vertices: &mut Vec<Vertex<P>>, v: Vertex<P>) -> bool {
-    if vertices.last().iter().all(|ev| ev.point != v.point) {
+    let start = vertices.iter().take(1);
+    let end = vertices.last().clone().into_iter();
+    if start.chain(end).all(|ev| ev.point != v.point) {
         vertices.push(v);
         true
     } else {
@@ -379,15 +381,14 @@ mod tests {
     #[test]
     fn test_tangent_no_cut() {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let hs = Halfspace2 {
-            normal: v2(0.0, 1.0),
-            line: LineSegment2::from_pv(p2(-1.0, 1.0), v2(1.0, 0.0))
-        };
-        let parts = assert_hs_cut_ok(r, hs);
-        let remains = parts.inside.unwrap();
-        assert_eq!(remains.vertices.len(), 4);
-        assert!(parts.outside.is_none());
-        assert_eq!(parts.tangent.len(), 2);
+        for hs in r.halfspaces() {
+            dbg!(&hs);
+            let parts = assert_hs_cut_ok(r.clone(), hs);
+            let remains = parts.inside.unwrap();
+            assert_eq!(remains.vertices.len(), 4);
+            assert!(parts.outside.is_none());
+            assert_eq!(parts.tangent.len(), 2);
+        }
     }
 
     #[test]
