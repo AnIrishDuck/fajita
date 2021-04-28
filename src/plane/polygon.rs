@@ -230,7 +230,7 @@ where
 impl Container<Point2> for Polygon2
 {
     fn contains(&self, point: &Point2) -> Orientation {
-        Self::union(self.halfspaces(), point)
+        Self::intersect(self.halfspaces(), point)
     }
 }
 

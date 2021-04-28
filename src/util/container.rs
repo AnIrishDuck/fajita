@@ -27,7 +27,7 @@ impl Orientation {
 pub trait Container<P> {
     fn contains(&self, p: &P) -> Orientation;
 
-    fn union<C, I>(i: I, v: &P) -> Orientation
+    fn intersect<C, I>(i: I, v: &P) -> Orientation
     where
         C: Container<P>,
         I: IntoIterator<Item=C>
