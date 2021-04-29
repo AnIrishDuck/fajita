@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use crate::space::{Point3, Vector3};
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
@@ -36,10 +35,13 @@ impl Container<Point3> for Halfspace3 {
 
 impl Container<Vector3> for Halfspace3 {
     fn contains(&self, v: &Vector3) -> Orientation {
-        match v.dot(self.normal).partial_cmp(&0.0).unwrap() {
-            Ordering::Less => Orientation::In,
-            Ordering::Equal => Orientation::On,
-            Ordering::Greater => Orientation::Out,
+        let dp = v.dot(self.normal);
+        if dp.abs() < 0.000000001 {
+            Orientation::On
+        } else if dp < 0.0 {
+            Orientation::In
+        } else {
+            Orientation::Out
         }
     }
 }
