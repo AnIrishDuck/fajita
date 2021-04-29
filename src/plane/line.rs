@@ -1,3 +1,4 @@
+//! Planar [`LineSegment2`] and [`Halfspace2`]
 use std::ops;
 use std::cmp::Ordering;
 use crate::plane::{p2, Point2, Vector2};
@@ -63,7 +64,7 @@ pub struct LineSegment2 {
     pub b: Point2
 }
 
-/// Represents an infinite line:
+/// Represents a line segment:
 ///
 /// ```
 /// # use fajita::plane::{p2, v2};

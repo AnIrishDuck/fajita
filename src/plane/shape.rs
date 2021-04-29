@@ -1,3 +1,8 @@
+//! Defines a [`Shape2`] that is a union of many disjoint [`Polygon2`]. Can be
+//! used to model arbitrary two-dimensional shapes, including concave polygons
+//! and shapes with holes.
+//!
+//! Shapes, like polygons, also are [`Point2`] containers.
 use crate::plane::Point2;
 use crate::plane::polygon::{Polygon2, Vertex2};
 use std::collections::HashMap;
@@ -6,16 +11,26 @@ use crate::util::container::{Container, Orientation};
 use crate::util::knife::{Knife, Parts};
 
 #[derive(Clone)]
-pub struct IndexedPolygon {
-    pub point_ixs: Vec<usize>
+struct IndexedPolygon {
+    point_ixs: Vec<usize>
 }
 
+/// A union of one or more [`Polygon2`].
+///
+/// Must obey two laws:
+/// - **non-zero**: must contain at least one polygon.
+/// - **non-overlapping**: the intersection of any two polygons must be zero.
+///
+/// Also, all polygon parts must obey the associated [`Polygon2`] laws.
+///
+/// Corresponding violations are tracked via the [`ShapeError`] enum.
 #[derive(Clone)]
 pub struct Shape2 {
-    pub points: im::Vector<Point2>,
-    pub polygons: im::Vector<IndexedPolygon>
+    points: im::Vector<Point2>,
+    polygons: im::Vector<IndexedPolygon>
 }
 
+/// Possible violations of the [`Shape2`] laws.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ShapeError {
     Zero,
@@ -94,6 +109,8 @@ impl Shape2 {
         }
     }
 
+    /// Find the union of this shape and the `other` shape, eliminating any
+    /// overlapping polygons.
     pub fn union(mut self, other: &Shape2) -> Shape2 {
         let parts = self.cut(other);
         self.extend(parts.outside.into_iter().flat_map(|p| p.into_flat_polygons()));
@@ -104,10 +121,13 @@ impl Shape2 {
         self.cut(other).inside
     }
 
+    /// Remove all parts of the `other` shape also contained in this shape,
+    /// potentially resulting in no shape at all (e.g. `self.remove(&self)`).
     pub fn remove(&self, other: &Shape2) -> Option<Shape2> {
         other.cut(self).outside
     }
 
+    /// Verify this shape follows all associated laws.
     pub fn validate(&self) -> Option<ShapeError> {
         if self.polygons.len() == 0 {
             return Some(ShapeError::Zero)

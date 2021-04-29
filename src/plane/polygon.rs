@@ -1,3 +1,4 @@
+//! Definitions for [`Polygon`], [`Polygon2`], and associated helpers.
 use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
@@ -61,6 +62,7 @@ impl Winding {
     }
 }
 
+/// Enumerates violations of the laws that [`Polygon2`] must follow.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PolygonError {
     Zero,
@@ -68,6 +70,9 @@ pub enum PolygonError {
     NotConvex
 }
 
+/// A generic cycle of points that form a polygon in the plane or in
+/// space. Used to define the concrete [`Polygon2`] and [`crate::space::polygon::Polygon3`]
+/// types.
 #[derive(Clone, Debug)]
 pub struct Polygon<P: Clone>
 {
@@ -76,10 +81,13 @@ pub struct Polygon<P: Clone>
 
 impl<P: Clone + PartialEq> Polygon<P>
 {
+    /// Iterate over all points in this polygon.
     pub fn points(&self) -> impl Iterator<Item=P> + '_ {
         self.vertices.iter().map(|v| v.point.clone())
     }
 
+    /// Iterate over all eges in this polygon, including the final edge from the
+    /// end to start vertex.
     pub fn edges(&self) -> impl Iterator<Item=Edge<P>> + '_ {
         let len = self.vertices.len();
         (0..len).into_iter().map(move |ix| {
@@ -90,15 +98,30 @@ impl<P: Clone + PartialEq> Polygon<P>
         })
     }
 
+    /// Adds the given vertex to this polygon if it is not already present at the
+    /// start or end.
     pub fn extend(&mut self, v: Vertex<P>) -> bool {
         extend(&mut self.vertices, v)
     }
 }
 
+/// A polygon composed of two-dimensional points.
+///
+/// Every [`Polygon2`] must follow three laws:
+///
+/// - **non-zero**: must have at least three points.
+/// - **clockwise**: vertices are stored so that their winding is clockwise.
+/// - **convex**: all points must be _in_ or _on_ all halfspaces of the polygon.
+///
+/// The associated [`PolygonError`] enum tracks violations of these laws.
+///
+/// There is also a fourth, implicit law guaranteed by this representation: every
+/// vertex belongs to exactly two segments, making the polygon closed.
 pub type Polygon2 = Polygon<Point2>;
 
 impl Polygon2
 {
+    /// Iterates over every associated halfspace of this polygon.
     pub fn halfspaces(&self) -> impl Iterator<Item=Halfspace2> + '_ {
         self.edges().map(move |e| {
             let a = e.start().point;
@@ -110,11 +133,14 @@ impl Polygon2
         })
     }
 
+    /// The center point of this polygon. As the polygon is convex, the center is
+    /// guaranteed to be inside it.
     pub fn center(&self) -> Point2 {
         let sum: Vector2 = self.vertices.iter().map(|v| v.point.to_vec()).sum();
         Point2::from_vec(sum / self.vertices.len() as f64)
     }
 
+    /// Verify that this polygon follows all associated laws.
     pub fn validate(&self) -> Option<PolygonError> {
         if self.winding() == Some(Winding::Clockwise) {
             Some(PolygonError::InvalidWinding)
@@ -124,20 +150,27 @@ impl Polygon2
         }
     }
 
+    /// Calculates the winding of this polygon. For all valid polygons, must be
+    /// [`Winding::Clockwise`].
     pub fn winding(&self) -> Option<Winding> {
         Winding::find_from_points(self.vertices.iter().map(|v| v.point))
     }
 
+    /// Calculate the union of this polygon with `other`.
     pub fn union<I: Into<Shape2>>(self, other: I) -> Shape2 {
         let shape: Shape2 = self.into();
         shape.union(&other.into())
     }
 
+    /// Calculates the result of removing the `other` polygon from this one. If
+    /// the result is zero, return `None`.
     pub fn remove<I: Into<Shape2>>(self, other: I) -> Option<Shape2> {
         let shape: Shape2 = self.into();
         shape.remove(&other.into())
     }
 
+    /// Construct a new polygon from points. Returns a [`PolygonError`] if the
+    /// result does not obey the polygon laws.
     pub fn new<'a, I, N>(into: N) -> Result<Polygon2, PolygonError>
     where
     N: IntoIterator<Item = Point2, IntoIter=I>,
