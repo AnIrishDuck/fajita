@@ -6,7 +6,7 @@ use crate::plane::line::{perpendicular, Halfspace2};
 use super::shape::Shape2;
 use crate::util::container::{containers, Container, Orientation};
 use crate::util::intersect::Intersect;
-use crate::util::knife::{Knife, Parts};
+use crate::util::knife::{knives, Knife, Parts};
 use crate::util::segment::{Edge, Segment, Span};
 use crate::util::vertex::Vertex;
 use crate::util::winding::Winding;
@@ -288,23 +288,7 @@ impl Knife<Polygon2> for Polygon2
     type Tangent = Vec<Vertex2>;
 
     fn cut(&self, target: Polygon2) -> Parts<Vec<Polygon2>, Vec<Vertex2>> {
-        let mut outside = vec![];
-        let mut tangent = vec![];
-
-        let mut remains = Some(target);
-        for hs in self.halfspaces() {
-            let parts = remains.map(|polygon| hs.cut(polygon));
-            remains = match parts {
-                Some(parts) => {
-                    outside.extend(parts.outside);
-                    tangent.extend(parts.tangent);
-                    parts.inside
-                }
-                None =>  None
-            }
-        }
-
-        Parts { inside: remains.into_iter().collect(), outside, tangent }
+        knives::carve(self.halfspaces(), target)
     }
 }
 

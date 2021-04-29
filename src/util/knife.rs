@@ -38,3 +38,31 @@ pub trait Knife<I> {
 
     fn cut(&self, input: I) -> Parts<Self::Output, Self::Tangent>;
 }
+
+pub mod knives {
+    use super::*;
+
+    pub fn carve<P, I, K, T>(knife: I, target: P) -> Parts<Vec<P>, Vec<T>>
+    where
+        I: IntoIterator<Item=K>,
+        K: Knife<P, Output=Option<P>, Tangent=Vec<T>>
+    {
+        let mut outside = vec![];
+        let mut tangent = vec![];
+
+        let mut remains = Some(target);
+        for hs in knife.into_iter() {
+            let parts = remains.map(|polygon| hs.cut(polygon));
+            remains = match parts {
+                Some(parts) => {
+                    outside.extend(parts.outside);
+                    tangent.extend(parts.tangent);
+                    parts.inside
+                }
+                None =>  None
+            }
+        }
+
+        Parts { inside: remains.into_iter().collect(), outside, tangent }
+    }
+}
