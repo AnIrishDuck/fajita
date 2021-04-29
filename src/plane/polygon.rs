@@ -414,7 +414,6 @@ mod tests {
     fn test_tangent_no_cut() {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         for hs in r.halfspaces() {
-            dbg!(&hs);
             let parts = assert_hs_cut_ok(r.clone(), hs);
             let remains = parts.inside.unwrap();
             assert_eq!(remains.vertices.len(), 4);
