@@ -1,52 +1,55 @@
-# Understanding CSG
+# Understanding Constructive Solid Geometry
 
-A concise lay definition of CSG could be "math with shapes and solids".
-Despite this simple description, CSG is a powerful and useful tool at the
-heart of modern CAD and CAM programs.
+Constructive Solid Geometry, or CSG, is a powerful and useful tool at the
+heart of modern solid modeling. A concise lay-definition of CSG could
+be "math with shapes and solids." Despite this simple description, there are
+a multitude of applications:
 
-There are three core CSG operations:
+- Computer-aided design (CAD) can use CSG to help engineers and designers describe
+  and compose complex objects and assemblies.
+- Computer-aided manufacturing (CAM) often uses CSG to approximate the
+  finished results and calculate important properties of the process like
+  chip load and deposited material.
+- Games sometimes use CSG for effects, or other physical calculations.
+
+So, now that we have some idea what CSG might be useful for, let's review how
+it works. There are three core CSG operations:
 
 - Finding the _union_ of two objects.
 - Finding the _intersection_ of two objects.
-- _Subtraction_ of one object from another.
+- Calculating the _difference_ of one object from another.
 
 | ![Common CSG Operations](./0-ops.png) |
 |:--:|
-| _The union, intersection, and difference of two squares_ |
+| _Two squares and their union, intersection, and difference_ |
 
-I have been unable to find good online resources describing how these
-operations work. That is not to say that none exist. This guide itself
-draws heavily on the amazing documentation provided by CGAL and CSG.js
-However, each of these sources have their own flaws.
+This guide will take us through the guts of how these operations actually
+work. It draws heavily on the theoretical framework sketched out by the
+Computational Geometry Algorithms Library [in their
+documentation](https://doc.cgal.org/latest/Nef_3/index.html). We will also
+attempt to augment this framework by clarifying some concepts with additional
+detail.
 
-CSG.js has an in-depth guide to _how_ it works, but is light on the theory
-and _why_ it works.
+We'll address philosophical questions like "what is a solid?" and "what is a
+shape?" while also describing how to model them and, eventually, how to do
+"math" with them.
 
-The CGAL CSG library has a very theory-centric description that leans heavily
-on theoretical concepts like Nef Polyhedra. This resource was hard to
-decipher, but was very helpful in my eventual understanding of the
-foundational math behind CSG.
-
-This guide will attempt to strike a happy medium. We'll address philisophical
-questions like "what is a solid?" and "what is a shape?" while also
-describing how to model them and, eventually, how to do "math" with them.
-
-We will start with two dimensions, because it is easier to visualize and
-reason about. However, in the final sections we will see how it is easy to
-extend the core concepts we describe to the third dimension.
+We start with two dimensions, because it is easier to visualize. However, in
+the final sections we will see how it is easy to extend the core concepts we
+describe to the third dimension.
 
 ### What are Things?
 
-We formally define shapes and solids as "containers of points". Specifically,
-for our analysis, we consider such containers as dividing points (and later,
-some other objects) into three categories:
+We formally define shapes and solids as "containers of points." Specifically,
+for our analysis, we consider such containers as dividing points into three
+categories:
 
 - Things that are _in_ the container.
 - Things that are _on_ the container.
 - Things that are _out_ of the container.
 
-These roughly correspond to `<`, `=`, and `>` that we know and love from the
-familiar world of numbers.
+These roughly correspond to the `<`, `=`, and `>` relations that we know and
+love from the familiar world of numbers.
 
 ### Representing Containers
 
@@ -59,27 +62,28 @@ container relationship (in this case, describing a circle).
 |:--:|
 |_An implicit representation of a circle_|
 
-While the results are often seductively simple definitions of complex
+Though the results are often seductively simple definitions of complex
 objects, these representations are not well-suited for computational
 manipulation.
 
-The blunt reason why is that actually solving the equations these functions
+The blunt explanation is that actually solving the equations these functions
 produce in an algorithmic way is incredibly complicated. A large volume of
 academic papers have been written in service of this problem.
 
 ### Approximating Beauty
 
 Instead, we will center our discussion around linear approximations of these
-amazing objects. While uglier, the results are much more tractable.
+amazing objects. Though uglier, the results are much more tractable.
 
 |![A linear approximation of the circle](./0-linear-circle.png)|
 |:--:|
 |_A linear approximation of the previous circle_|
 
 We can then take an inductive approach to defining and solving our problem.
-This journey will see us build increasingly useful abstractions and
-operations on them until the tools we've built can be used to perform CSG
-operations in a straightforward way.
+This journey will see us build increasingly useful abstractions. At each
+step, we will define increasingly powerful operations on these abstractions.
+We will continue until our abstractions can describe arbitrary objects, and our
+operations can perform CSG on these objects in a straightforward way.
 
 It all starts with a line.
 
@@ -98,7 +102,7 @@ is within or without.
 |_Implicit linear inequalities_|
 
 A more explicit definition is the segment-normal approach. A segment is
-extended to an infinite line to form the partition. The normal vector is
+extended to an infinite line to form a partition. The normal vector is
 included to orient this line and define which points lie "outside" the
 halfspace.
 
@@ -108,7 +112,7 @@ halfspace.
 
 The normal vector is always perpendicular to the given segment. This lets us
 easily calculate whether a given point is _in_, _on_, or _out_ of the
-partition via the dot product.
+partition by checking the angle that point makes with the normal.
 
 ### Edges Contain Points
 
@@ -129,15 +133,12 @@ Points "inside" form an angle greater than 90 degrees, points "on" form an
 angle exactly 90 degrees, and points "outside form an angle less than 90
 degrees.
 
-This corresponds to a dot product of -1, 0, and 1 respectively. This is the
-only math that we'll need to use for the entirety of this guide.
-
-### The Subtle Knife
+### Our First Cut
 
 Because edges contain points, one natural next question is whether edges can
 contain other edges.
 
-The answer is "not quite". Consider that an edge itself consists of two
+The answer is "not quite." Consider that an edge itself consists of two
 points. This necessarily means that one `knife` edge cannot necessarily
 contain another `target` edge. Sure, if both points of the `target` are
 inside the `knife`'s halfspace, then we can say the `target` is _in_ the
@@ -147,8 +148,8 @@ But what if one point is _in_ and the other is _out_?
 
 In this case, we say the `knife` "cuts" the `target`. The result of this cut
 is one or zero _in_ edges, one or zero _on_ intersection points (or edges),
-and one or zero _out_ edges. This concept is incredibly powerful, and one
-we'll extend to more complex objects.
+and one or zero _out_ edges. This concept is incredibly powerful; we'll
+extend it to more complex objects.
 
 |![One edge cutting another](./0-edge-knife.png)|
 |:--:|
@@ -160,7 +161,7 @@ operation must be either _in_ or _on_ the original target.
 
 ### Sets of Edges
 
-So, we've met the foundational building block of our world, the edge. We've
+So, we've met the foundational building block of our world: the edge. We've
 also observed how it can function as a "knife" that cuts other objects.
 Despite this superpower, the edge object is still incredibly simple. In the
 next section, we'll see how we can cook up more interesting things with this

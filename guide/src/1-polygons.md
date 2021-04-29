@@ -47,7 +47,7 @@ _out_ edge, and any point _on_ both edges.
 
 | ![Our triangle cut by an edge](./1-triangle-edge-out.png) |
 |:--:|
-| _Cutting our triangle with an edge knife_ |
+| _Cutting our target triangle with an edge knife_ |
 
 The intermediate result will be a list of _out_ edges, a list of _in_
 edges, and two or fewer points _on_ the polygon.
@@ -76,7 +76,7 @@ are collections of edges, we can use a polygon to cut another polygon!
 
 | ![Our triangle cutting a box](./1-triangle-and-box.png) |
 |:--:|
-| _A triangle and a target box_ |
+| _A triangle knife and a target box_ |
 
 The algorithm is iterative. We start with the `target` polygon. For each edge
 of the `knife` polygon, we cut the `target`. We record any _out_ polygons
@@ -85,7 +85,7 @@ as the `target` for the next edge, until no edges are left in the `knife`.
 
 | ![Our triangle cutting a box](./1-triangle-cuts-box.png) |
 |:--:|
-| _Using our triangle to cut a box_ |
+| _Using our triangle knife to cut a target box_ |
 
 The end result is a set of _in_ polygons, a set of _on_ points, a set of _on_
 edges, and a set of _out_ polygons. Generally speaking, by this point the

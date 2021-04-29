@@ -18,7 +18,7 @@ model arbitrary two-dimensional objects, including concave polygons:
 For the math-inclined among us, the set-theoretic way to describe this object
 is a _union_ of _intersections_ of halfspaces.
 
-Like with polygons, we'll set some ground rules:
+As with polygons, we'll set some ground rules:
 
 - **non-zero**: a shape must have at least one polygon.
 - **distinct polygons**: every polygon in a shape must be completely
@@ -80,7 +80,8 @@ Accumulate the _inside_ and _outside_ parts into new respective shapes.
 
 ### Shapes Cut Shapes
 
-This is a bit trickier, but is still relatively easy to reason through.
+This is a bit trickier, but is still relatively straightforward to reason
+through.
 
 | ![Two example shapes](./2-shape-examples.png) |
 |:--:|
@@ -102,7 +103,7 @@ We know that the `inner` polygons cannot be cut again because of the
 ### Math with Shapes
 
 A perceptive reader may have noted by this point that we now have everything
-we need to do our core CSG operations with two-dimensional objects:
+we need to execute our core CSG operations with two-dimensional objects:
 
 - To find the _union_ of two shapes, we use one shape to cut another. The
   _in_ shape is discarded (to preserve the **distinct polygons** property),
