@@ -1,7 +1,7 @@
 use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
-use crate::plane::line::Halfspace2;
+use crate::plane::line::{perpendicular, Halfspace2};
 use crate::util::container::{Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
@@ -29,15 +29,10 @@ fn extend<P: Clone + PartialEq>(vertices: &mut Vec<Vertex<P>>, v: Vertex<P>) -> 
     }
 }
 
-/// Returns the Clockwise-wound perpendicular vector for a given vector
-pub fn perpendicular(v: Vector2) -> Vector2 {
-    Vector2 { x: v.y, y: -v.x }
-}
-
 impl Winding {
     pub fn from_points(a: Point2, b: Point2, c: Point2) -> Option<Self> {
         let normal = perpendicular(b - a);
-        let hs = Halfspace2 { normal, line: LineSegment2 { a, b } };
+        let hs = Halfspace2 { normal, origin: a };
         // perpendicular always returns a clockwise vector, and normals point out
         // therefore Out => Clockwise
         match hs.contains(&c) {
@@ -109,7 +104,7 @@ impl Polygon2
             let b = e.end().point;
             Halfspace2 {
                 normal: perpendicular(b - a),
-                line: LineSegment2 { a, b}
+                origin: a
             }
         })
     }
@@ -355,7 +350,7 @@ mod tests {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
-            line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
+            origin: p2(-1.0, 0.5)
         };
         let parts = assert_hs_cut_ok(r, hs);
 
@@ -370,7 +365,7 @@ mod tests {
         let r = rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
-            line: LineSegment2::from_pv(p2(-1.0, 1.5), v2(1.0, 0.0))
+            origin: p2(-1.0, 1.5)
         };
         let parts = assert_hs_cut_ok(r, hs);
         let remains = parts.inside.unwrap();

@@ -6,15 +6,26 @@ use crate::util::intersect::Intersect;
 use crate::util::segment::Segment;
 use cgmath::InnerSpace;
 
+/// Returns the Clockwise-wound perpendicular vector for a given vector
+pub fn perpendicular(v: Vector2) -> Vector2 {
+    Vector2 { x: v.y, y: -v.x }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Halfspace2 {
-    pub line: LineSegment2,
+    pub origin: Point2,
     pub normal: Vector2
+}
+
+impl Halfspace2 {
+    pub fn line(&self) -> LineSegment2 {
+        LineSegment2::from_pv(self.origin, perpendicular(self.normal))
+    }
 }
 
 impl Container<Point2> for Halfspace2 {
     fn contains(&self, p: &Point2) -> Orientation {
-        match (self.line.a - p).dot(self.normal).partial_cmp(&0.0).unwrap() {
+        match (self.origin - p).dot(self.normal).partial_cmp(&0.0).unwrap() {
             Ordering::Less => Orientation::Out,
             Ordering::Equal => Orientation::On,
             Ordering::Greater => Orientation::In,
@@ -33,16 +44,13 @@ impl Segment for LineSegment2 {
     fn end(&self) -> Point2 { self.b }
 }
 
-impl<S> Intersect<Halfspace2> for S
-where
-    S: Clone,
-    LineSegment2: From<S>
+impl Intersect<Halfspace2> for LineSegment2
 {
     type Output = Option<Point2>;
 
     fn intersect(&self, knife: Halfspace2) -> Option<Point2> {
         let l = LineSegment2::from(self.clone());
-        let intersect = knife.line.intersect(&l);
+        let intersect = knife.line().intersect(&l);
         intersect.filter(|&(_, u, _)| {
             u >= 0.0 && u <= 1.0
         }).map(|(_, _, p)| p)
@@ -134,7 +142,7 @@ mod test {
     fn test_halfspace_direction() {
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
-            line: LineSegment2::new(p2(0.0, 0.0), p2(1.0, 0.0))
+            origin: p2(0.0, 0.0)
         };
 
         assert_eq!(hs.contains(&p2(1.0, 1.0)), Orientation::Out);
@@ -147,7 +155,7 @@ mod test {
         for x in vec![-10.0, 0.0, 10.0] {
             let hs = Halfspace2 {
                 normal: v2(0.0, 1.0),
-                line: LineSegment2::from_pv(p2(x, 0.0), v2(1.0, 0.0))
+                origin: p2(x, 0.0)
             };
 
             let parts = hs.cut(LineSegment2::new(p2(0.5, -1.0), p2(0.5, 1.0)));
@@ -183,7 +191,7 @@ mod test {
     fn test_halfspace_cuts_preserve_order() {
         let hs = Halfspace2 {
             normal: v2(0.0, 1.0),
-            line: LineSegment2::from_pv(p2(-1.0, 0.5), v2(1.0, 0.0))
+            origin: p2(-1.0, 0.5)
         };
 
         let parts = hs.cut(LineSegment2::new(p2(0.0, 1.0), p2(0.0, 0.0)));
