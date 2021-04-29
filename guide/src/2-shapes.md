@@ -110,8 +110,8 @@ we need to execute our core CSG operations with two-dimensional objects:
   and the _out_ shape is combined with the `knife` to form the union.
 - To find the _intersect_ of two shapes, we again use one shape to cut another.
   The _in_ shape is the result, and the _out_ shape is discarded.
-- To find the _difference_ of two shapes, we use the negative shape to cut the
-  positive shape, and use only the resulting _out_ shape.
+- To _remove_ one shape from another, we use the negative shape to cut the
+  positive shape, and return only the resulting _out_ shape.
 
 Let's see what this looks like with polygons:
 
@@ -132,7 +132,8 @@ when calculating the intersect of two totally disjoint shapes).
 
 ### The Next Dimension
 
-And just like that, we're done with CSG in two dimensions. This
-lower-dimensional dicussion has given us a solid theoretical foundation that
-we can build upon. And, as we will see in the next section, every concept we
-have covered so far has a straightforward extension into the third dimension.
+And just like that, we're done with computational solid geometry in two
+dimensions. This lower-dimensional dicussion has given us a solid theoretical
+foundation that we can build upon. And, as we will see in the next section,
+every concept we have covered so far has a straightforward extension into the
+third dimension.

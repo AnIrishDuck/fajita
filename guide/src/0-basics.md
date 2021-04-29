@@ -20,13 +20,13 @@ a multitude of applications:
 So, now that we have some idea what CSG might be useful for, let's review how
 it works. There are three core CSG operations:
 
-- Finding the _union_ of two objects.
-- Finding the _intersection_ of two objects.
-- Calculating the _difference_ of one object from another.
+- _Union_: combining two objects.
+- _Intersection_: finding where two objects overlap.
+- _Removal_: deleting all parts of one object that appear in another.
 
 | ![Common CSG Operations](./0-ops.png) |
 |:--:|
-| _Two squares and their union, intersection, and difference_ |
+| _Two squares and the resulting union, intersection, and removal_ |
 
 This guide will take us through the guts of how these operations actually
 work. It draws heavily on the theoretical framework sketched out by the
