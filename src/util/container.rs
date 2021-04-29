@@ -26,8 +26,12 @@ impl Orientation {
 /// Point2) and more complex objects like halfspaces, polygons, and polyhedra.
 pub trait Container<P> {
     fn contains(&self, p: &P) -> Orientation;
+}
 
-    fn intersect<C, I>(i: I, v: &P) -> Orientation
+pub mod containers {
+    use super::*;
+
+    pub fn intersect<P, C, I>(i: I, v: &P) -> Orientation
     where
         C: Container<P>,
         I: IntoIterator<Item=C>

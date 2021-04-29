@@ -3,7 +3,7 @@ use super::{Point3, Vector3};
 use super::plane::Halfspace3;
 use super::polygon::{Vertex3, Polygon3};
 use crate::plane::polygon::Polygon;
-use crate::util::container::{Container, Orientation};
+use crate::util::container::{containers, Container, Orientation};
 use crate::util::knife::{Knife, Parts};
 use crate::util::segment::Segment;
 use crate::util::winding::Winding;
@@ -161,7 +161,7 @@ impl Polyhedron3
 impl Container<Point3> for Polyhedron3
 {
     fn contains(&self, point: &Point3) -> Orientation {
-        Self::intersect(self.halfspaces(), point)
+        containers::intersect(self.halfspaces(), point)
     }
 }
 

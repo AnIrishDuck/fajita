@@ -2,7 +2,7 @@ use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::{perpendicular, Halfspace2};
-use crate::util::container::{Container, Orientation};
+use crate::util::container::{containers, Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
 use crate::util::segment::{Edge, Segment, Span};
@@ -225,7 +225,7 @@ where
 impl Container<Point2> for Polygon2
 {
     fn contains(&self, point: &Point2) -> Orientation {
-        Self::intersect(self.halfspaces(), point)
+        containers::intersect(self.halfspaces(), point)
     }
 }
 
