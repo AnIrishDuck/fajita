@@ -58,6 +58,7 @@ impl Shape2 {
             let vertices = p.point_ixs.iter().map(|point_ix| {
                 Vertex2 {
                     index: Some(*point_ix),
+                    reverse: false,
                     point: self.points[*point_ix]
                 }
             }).collect();
@@ -72,6 +73,7 @@ impl Shape2 {
             let vertices = p.point_ixs.iter().map(|point_ix| {
                 Vertex2 {
                     index: Some(*point_ix),
+                    reverse: false,
                     point: points[*point_ix]
                 }
             }).collect();

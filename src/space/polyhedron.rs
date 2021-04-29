@@ -184,7 +184,6 @@ impl PartialPolygon3 {
         let mut current = self.starts.values().next().cloned();
         let mut result = vec![];
         while !self.starts.is_empty() {
-            // let next = current.and_then(|k| self.starts.remove(&k));
             match current {
                 Some(vertices) => {
                     current = vertices.last().and_then(|v|
@@ -318,21 +317,32 @@ mod test {
         assert_eq!(unclosed.validate(), Some(PolyhedronError::NotClosed));
     }
 
-    #[test]
-    fn test_cut() {
-        let square = shapes::rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
-        let base = Polygon3::project(&square, &Basis3::unit());
-        let cube = solids::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
-
+    fn verify_multidirectional_cut(p: &Polyhedron3) {
         for v in [v3(0.0, 0.0, 1.0), v3(0.0, 1.0, 1.0), v3(1.0, 1.0, 1.0)].iter() {
             for dir in [1.0, -1.0].iter() {
                 let normal = (v * (*dir)).normalize();
                 let hs = Halfspace3 { origin: p3(0.5, 0.5, 0.5), normal };
 
-                let parts = assert_hs_cut_ok(cube.clone(), hs);
+                let parts = assert_hs_cut_ok(p.clone(), hs);
                 assert!(parts.inside.is_some());
                 assert!(parts.outside.is_some());
             }
         }
+    }
+
+    #[test]
+    fn test_cube() {
+        let square = shapes::rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let base = Polygon3::project(&square, &Basis3::unit());
+        let cube = solids::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
+        verify_multidirectional_cut(&cube);
+    }
+
+    #[test]
+    fn test_extrusion() {
+        let square = shapes::rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
+        let base = Polygon3::project(&square, &Basis3::unit());
+        let p = solids::extrude(base, v3(0.1, 0.2, 1.0)).unwrap();
+        verify_multidirectional_cut(&p);
     }
 }

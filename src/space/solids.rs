@@ -21,13 +21,16 @@ pub fn extrude(base: Polygon3, direction: Vector3) -> Option<Polyhedron3> {
 
         let mut faces = vec![];
         faces.extend(base.polygon.edges().map(|e| {
-            let a = e.start();
-            let b = e.end();
+            let mut a = e.start();
+            let mut b = e.end();
+            let last_leg = b.clone() + direction;
+            a.reverse = true;
+            b.reverse = true;
             let vertices = vec![
-                b.clone(),
+                b,
                 a.clone(),
                 a + direction,
-                b + direction,
+                last_leg,
             ];
 
             Polygon3 { vertices }.face()

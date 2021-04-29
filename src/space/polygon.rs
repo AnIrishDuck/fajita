@@ -54,6 +54,7 @@ impl Polygon3
         let vertices = polygon.vertices.iter().map(|v| {
             Vertex3 {
                 index: None,
+                reverse: false,
                 point: basis.project(p3(v.point.x, v.point.y, 0.0))
             }
         }).collect();
@@ -73,7 +74,7 @@ impl Polygon3
             match Halfspace3::find_from_points(points.clone()) {
                 Some(hs) => {
                     let vertices = points.into_iter().map(
-                        |point| Vertex3 { index: None, point }
+                        |point| Vertex3 { index: None, reverse: false, point }
                     ).collect();
 
                     let polygon = Polygon3 { vertices };

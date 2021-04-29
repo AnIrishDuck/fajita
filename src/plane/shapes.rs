@@ -13,7 +13,7 @@ pub fn rectangle(origin: Point2, extent: Vector2) -> Polygon2 {
         origin + extent,
         origin + ey
     ].into_iter().enumerate().map(|(index, point)| {
-        Vertex2 { index: Some(index), point }
+        Vertex2 { index: Some(index), reverse: false, point }
     }).collect();
 
     Polygon2 { vertices }

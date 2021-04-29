@@ -148,7 +148,7 @@ impl Polygon2
                     } else { points.collect() };
 
                     let vertices = in_order.into_iter().map(
-                        |point| Vertex2 { index: None, point }
+                        |point| Vertex2 { index: None, reverse: false, point }
                     ).collect();
 
                     let polygon = Polygon2 { vertices };
@@ -212,7 +212,7 @@ where
                     };
 
                     inside.extend(p.clone());
-                    outside.extend(p.clone());
+                    outside.extend(p.reversed());
                     extend(&mut tangent, p);
                 },
                 None => {}

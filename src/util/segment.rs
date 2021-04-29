@@ -51,6 +51,11 @@ impl<P: Clone> Edge<P>
     {
         let a = self.a.point.clone();
         let b = self.b.point.clone();
+        let (a, b) = if self.a.reverse {
+            (b, a)
+        } else {
+            (a, b)
+        };
         let intersect = S::from_endpoints(a, b).intersect(knife);
         intersect.map(|p| {
             if p == self.a.point {
@@ -60,6 +65,7 @@ impl<P: Clone> Edge<P>
             } else {
                 Vertex {
                     point: p,
+                    reverse: self.a.reverse,
                     index: None,
                 }
             }
