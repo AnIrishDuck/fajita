@@ -1,6 +1,9 @@
+//! Constructors for common two-dimensional shapes in the plane.
 use crate::plane::{v2, Point2, Vector2};
 use crate::plane::polygon::{Polygon2, Vertex2};
 
+/// A simple four-sided box constructed from an `origin` and vector `extent`. The
+/// extent must be non-negative.
 pub fn rectangle(origin: Point2, extent: Vector2) -> Polygon2 {
     assert!(extent.x > 0.0 && extent.y > 0.0);
 

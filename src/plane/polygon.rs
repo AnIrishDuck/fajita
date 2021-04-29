@@ -2,6 +2,7 @@ use cgmath::EuclideanSpace;
 
 use crate::plane::{LineSegment2, Point2, Vector2};
 use crate::plane::line::{perpendicular, Halfspace2};
+use super::shape::Shape2;
 use crate::util::container::{containers, Container, Orientation};
 use crate::util::intersect::Intersect;
 use crate::util::knife::{Knife, Parts};
@@ -127,6 +128,16 @@ impl Polygon2
         Winding::find_from_points(self.vertices.iter().map(|v| v.point))
     }
 
+    pub fn union<I: Into<Shape2>>(self, other: I) -> Shape2 {
+        let shape: Shape2 = self.into();
+        shape.union(&other.into())
+    }
+
+    pub fn remove<I: Into<Shape2>>(self, other: I) -> Option<Shape2> {
+        let shape: Shape2 = self.into();
+        shape.remove(&other.into())
+    }
+
     pub fn new<'a, I, N>(into: N) -> Result<Polygon2, PolygonError>
     where
     N: IntoIterator<Item = Point2, IntoIter=I>,
@@ -161,6 +172,15 @@ impl Polygon2
                 None => Err(PolygonError::Zero)
             }
         }
+    }
+}
+
+impl Intersect<Polygon2> for Polygon2
+{
+    type Output = Option<Polygon2>;
+
+    fn intersect(&self, knife: Polygon2) -> Self::Output {
+        knife.cut(self.clone()).inside.first().cloned()
     }
 }
 
