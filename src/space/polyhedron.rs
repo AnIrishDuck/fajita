@@ -274,7 +274,7 @@ mod test {
     use crate::plane::polygon::Polygon2;
     use crate::space::{p3, v3};
     use crate::space::polygon::{Polygon3, Basis3};
-    use crate::space::solids;
+    use crate::space::volumes;
     use super::*;
 
     fn assert_hs_cut_ok(original: Polyhedron3, hs: Halfspace3) -> Parts<Option<Polyhedron3>, Vec<Vertex3>> {
@@ -308,7 +308,7 @@ mod test {
     fn test_validation() {
         let tri = Polygon2::new(vec![p2(0.0, 0.0), p2(2.0, 0.0), p2(1.0, 2.0)]).unwrap();
         let base = Polygon3::project(&tri, &Basis3::unit());
-        let prism = solids::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
+        let prism = volumes::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
 
         assert_eq!(prism.validate(), None);
 
@@ -334,7 +334,7 @@ mod test {
     fn test_cube() {
         let square = shapes::rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let base = Polygon3::project(&square, &Basis3::unit());
-        let cube = solids::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
+        let cube = volumes::extrude(base, v3(0.0, 0.0, 1.0)).unwrap();
         verify_multidirectional_cut(&cube);
     }
 
@@ -342,7 +342,7 @@ mod test {
     fn test_extrusion() {
         let square = shapes::rectangle(p2(0.0, 0.0), v2(1.0, 1.0));
         let base = Polygon3::project(&square, &Basis3::unit());
-        let p = solids::extrude(base, v3(0.1, 0.2, 1.0)).unwrap();
+        let p = volumes::extrude(base, v3(0.1, 0.2, 1.0)).unwrap();
         verify_multidirectional_cut(&p);
     }
 }
