@@ -24,7 +24,7 @@ it works. There are three core CSG operations:
 - _Intersection_: finding where two objects overlap.
 - _Removal_: deleting all parts of one object that appear in another.
 
-| ![Common CSG Operations](./0-ops.png) |
+| ![Common CSG Operations](./img/0-ops.png) |
 |:--:|
 | _Two squares and the resulting union, intersection, and removal_ |
 
@@ -63,7 +63,7 @@ world of equations. Implicit functions take this idea to its logical and
 beautiful conclusion. They use inequalities like `x * x < 1` to define the
 container relationship (in this case, describing a circle).
 
-|![An implicit circle](./0-implicit-circle.png)|
+|![An implicit circle](./img/0-implicit-circle.png)|
 |:--:|
 |_An implicit representation of a circle_|
 
@@ -80,7 +80,7 @@ academic papers have been written in service of this problem.
 Instead, we will center our discussion around linear approximations of these
 amazing objects. Though uglier, the results are much more tractable.
 
-|![A linear approximation of the circle](./0-linear-circle.png)|
+|![A linear approximation of the circle](./img/0-linear-circle.png)|
 |:--:|
 |_A linear approximation of the previous circle_|
 
@@ -102,7 +102,7 @@ linear inequalities: `x > 5` and `x + y < 4` are examples. Taking a point and
 plugging it in to the equation yields an obvious result for whether a point
 is within or without.
 
-|![Implicit halfspaces](./0-implicit-line.png)|
+|![Implicit halfspaces](./img/0-implicit-line.png)|
 |:--:|
 |_Implicit linear inequalities_|
 
@@ -111,7 +111,7 @@ extended to an infinite line to form a partition. The normal vector is
 included to orient this line and define which points lie "outside" the
 halfspace.
 
-|![Segment-normal halfspaces](./0-explicit-edge.png)|
+|![Segment-normal halfspaces](./img/0-explicit-edge.png)|
 |:--:|
 |_Segment-normal representations of halfspaces_|
 
@@ -129,7 +129,7 @@ makes it easy to calculate whether a given point is contained by the
 halfspace via the dot product. This lets us then determine whether a given point
 is inside, on, or outside the partition.
 
-|![An edge and some relative points](./0-edge-contains.png)|
+|![An edge and some relative points](./img/0-edge-contains.png)|
 |:--:|
 |_An edge and points (a) in, (b) on, and (c) out of it_|
 
@@ -156,7 +156,7 @@ is one or zero _in_ edges, one or zero _on_ intersection points (or edges),
 and one or zero _out_ edges. This concept is incredibly powerful; we'll
 extend it to more complex objects in the future.
 
-|![One edge cutting another](./0-edge-knife.png)|
+|![One edge cutting another](./img/0-edge-knife.png)|
 |:--:|
 |_One edge cuts another into (a) in, (b) on, and (c) out parts_|
 

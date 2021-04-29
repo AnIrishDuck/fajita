@@ -6,7 +6,7 @@ use them to actually build things.
 We can use an intersection of an arbitrary number of halfspaces to build
 a _convex polygon_ which we will hence refer to simply as a _polygon_.
 
-| ![A triangle](./1-triangle.png) |
+| ![A triangle](./img/1-triangle.png) |
 |:--:|
 | _A triangle is a polygon_ |
 
@@ -26,7 +26,7 @@ Because polygons are collections of halfspaces, and because halfspaces
 are containers of points, the container relationship of polygons to points is
 easy to derive:
 
-| ![Triangles contain points](./1-triangle-container.png) |
+| ![Triangles contain points](./img/1-triangle-container.png) |
 |:--:|
 | _(a) in,  (b) on, and (c) out points for our triangle_ |
 
@@ -45,7 +45,7 @@ The method is straightforward. Start with the intact `target` polygon. Use
 the `knife` edge to divide each edge in the polygon into an _in_ edge, an
 _out_ edge, and any point _on_ both edges.
 
-| ![Our triangle cut by an edge](./1-triangle-edge-out.png) |
+| ![Our triangle cut by an edge](./img/1-triangle-edge-out.png) |
 |:--:|
 | _Cutting our target triangle with an edge knife_ |
 
@@ -57,7 +57,7 @@ added to close the resultant hole. This is necessary to preserve the
 **closed** law. For the _in_ polygon, the edge has the same normal as the
 `knife` edge. For the _out_ polygon, the normal is reversed.
 
-| ![Our triangle cut by an edge](./1-triangle-edge-cut.png) |
+| ![Our triangle cut by an edge](./img/1-triangle-edge-cut.png) |
 |:--:|
 | _Forming the two new polygons resulting from the cut_ |
 
@@ -74,7 +74,7 @@ additional dimensions.
 Because polygons are collections of halfspaces, and because other polygons
 are collections of edges, we can use a polygon to cut another polygon!
 
-| ![Our triangle cutting a box](./1-triangle-and-box.png) |
+| ![Our triangle cutting a box](./img/1-triangle-and-box.png) |
 |:--:|
 | _A triangle knife and a target box_ |
 
@@ -83,7 +83,7 @@ of the `knife` polygon, we cut the `target`. We record any _out_ polygons
 and _on_ points and edges. We use the remaining _in_ polygon, if any,
 as the `target` for the next edge, until no edges are left in the `knife`.
 
-| ![Our triangle cutting a box](./1-triangle-cuts-box.png) |
+| ![Our triangle cutting a box](./img/1-triangle-cuts-box.png) |
 |:--:|
 | _Using our triangle knife to cut a target box_ |
 

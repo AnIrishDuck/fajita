@@ -3,7 +3,7 @@
 There are clearly some two-dimensional objects that cannot be modeled
 with individual convex polygons. Any concave polygon is an example:
 
-| ![Polygons are simple](./2-polygons-simple.png) |
+| ![Polygons are simple](./img/2-polygons-simple.png) |
 |:--:|
 | _The two points circled are outside the halfspace of one edge_ |
 
@@ -11,7 +11,7 @@ This is where the prior concept we called a _shape_ comes into play. A shape
 is simply a set of polygons. Unlike the polygon, we can use this concept to
 model arbitrary two-dimensional objects, including concave polygons:
 
-| ![Shapes are more complex](./2-shape.png) |
+| ![Shapes are more complex](./img/2-shape.png) |
 |:--:|
 | _We can model this object as a set of two simpler polygons_ |
 
@@ -40,7 +40,7 @@ add another dimension. One formal way to describe this conundrum is that
 internal edges of shapes (those _on_ exactly two member polygons) are
 non-orientable.
 
-| ![Shapes and related points](./2-shape-container.png) |
+| ![Shapes and related points](./img/2-shape-container.png) |
 |:--:|
 | _A shape and points that are (a) in / (b) on / (c) in-on / (d) out_ |
 
@@ -52,14 +52,14 @@ edge cases.
 Note that none of our laws forbid a shape with multiple totally disconnected
 parts:
 
-| ![Disconnected shapes](./2-disjoint-shapes.png) |
+| ![Disconnected shapes](./img/2-disjoint-shapes.png) |
 |:--:|
 | _A shape with two disjoint parts_ |
 
 Also note that the non-orientable property described above makes it difficult
 in some cases to determine connectivity:
 
-| ![Two shapes connected by a single point](./2-point-connected-shapes.png) |
+| ![Two shapes connected by a single point](./img/2-point-connected-shapes.png) |
 |:--:|
 | _Two squares that touch at one point_ |
 
@@ -74,7 +74,7 @@ polygons that make up a shape. The corresponding operation on sets of
 polygons is obvious: for each polygon, cut using the given `knife`.
 Accumulate the _inside_ and _outside_ parts into new respective shapes.
 
-| ![A polygon cutting a shape](./2-polygon-cuts-shape.png) |
+| ![A polygon cutting a shape](./img/2-polygon-cuts-shape.png) |
 |:--:|
 | _Using a square polygon to cut a L shape_ |
 
@@ -83,7 +83,7 @@ Accumulate the _inside_ and _outside_ parts into new respective shapes.
 This is a bit trickier, but is still relatively straightforward to reason
 through.
 
-| ![Two example shapes](./2-shape-examples.png) |
+| ![Two example shapes](./img/2-shape-examples.png) |
 |:--:|
 | _A U-shape and a L-shape_ |
 
@@ -93,7 +93,7 @@ We start with a `current` shape that is equivalent to the `target`, and an
 polygons are added to the `inner` shape. The _out_ polygons are retained and
 become the new `target` for the next polygon in the `knife`.
 
-| ![The cut process](./2-shape-cut-shape.png) |
+| ![The cut process](./img/2-shape-cut-shape.png) |
 |:--:|
 | _Using a U-shape to cut a L-shape_ |
 
@@ -115,13 +115,13 @@ we need to execute our core CSG operations with two-dimensional objects:
 
 Let's see what this looks like with polygons:
 
-| ![CSG with polygons](./2-polygon-csg.png) |
+| ![CSG with polygons](./img/2-polygon-csg.png) |
 |:--:|
 | _CSG operations with polygons_ |
 
 And shapes:
 
-| ![CSG with shapes](./2-shape-csg.png) |
+| ![CSG with shapes](./img/2-shape-csg.png) |
 |:--:|
 | _CSG operations with shapes_ |
 
