@@ -1,5 +1,10 @@
 # Understanding Constructive Solid Geometry
 
+> **Note:** this guide is a work in progress.
+>
+> Some diagrams are confusing. Some sections (in particular, everything three-dimensional)
+> dearly need visualizations that we cannot currently generate. Not all sections have been written yet.
+
 Constructive Solid Geometry, or CSG, is a powerful and useful tool at the
 heart of modern solid modeling. A concise lay-definition of CSG could
 be "math with shapes and solids." Despite this simple description, there are
@@ -130,7 +135,7 @@ is inside, on, or outside the partition.
 
 Note the angle that each point forms with the normal in the above diagram.
 Points "inside" form an angle greater than 90 degrees, points "on" form an
-angle exactly 90 degrees, and points "outside form an angle less than 90
+angle exactly 90 degrees, and points "outside" form an angle less than 90
 degrees.
 
 ### Our First Cut
@@ -149,7 +154,7 @@ But what if one point is _in_ and the other is _out_?
 In this case, we say the `knife` "cuts" the `target`. The result of this cut
 is one or zero _in_ edges, one or zero _on_ intersection points (or edges),
 and one or zero _out_ edges. This concept is incredibly powerful; we'll
-extend it to more complex objects.
+extend it to more complex objects in the future.
 
 |![One edge cutting another](./0-edge-knife.png)|
 |:--:|

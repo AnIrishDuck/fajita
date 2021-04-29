@@ -49,8 +49,8 @@ edge cases.
 
 ### Shapes Can Have Multiple Parts
 
-Note that nothing in our definition precludes a shape with multiple totally
-disconnected parts:
+Note that none of our laws forbid a shape with multiple totally disconnected
+parts:
 
 | ![Disconnected shapes](./2-disjoint-shapes.png) |
 |:--:|

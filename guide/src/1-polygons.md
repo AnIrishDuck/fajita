@@ -97,6 +97,6 @@ cut a target object will also be useful in the future.
 
 ### Sets of Polygons
 
-Note that we see this "set of polygons" result twice here. We will call this
-new concept a _shape_, and discuss next how it is a powerful tool for
-modeling two-dimensional objects.
+We see this "set of polygons" result twice here. We will call this new
+concept a _shape_, and discuss next how it is a powerful tool for modeling
+two-dimensional objects.
